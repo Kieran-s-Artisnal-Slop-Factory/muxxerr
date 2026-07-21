@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"local-multiplexer/internal/supervisor"
+	"muxerr/internal/supervisor"
 )
 
 func at(s string) time.Time {

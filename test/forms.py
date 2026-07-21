@@ -1,4 +1,4 @@
-"""Drive the multiplexer the way a browser would: parse the HTML it actually
+"""Drive muxerr the way a browser would: parse the HTML it actually
 serves, submit the forms it actually renders, follow the redirects it actually
 sends. The curl suite posts to URLs I chose; this one posts to the URLs the
 pages contain, which is the only way to catch a form pointing at a route that

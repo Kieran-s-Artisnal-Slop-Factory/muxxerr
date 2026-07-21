@@ -1,6 +1,6 @@
 # Architecture
 
-The multiplexer exists to answer one question: *how do you put a login in front
+Muxerr exists to answer one question: *how do you put a login in front
 of an app that was designed, deliberately and correctly, to never have one?*
 
 Every app it serves — [workoutt](../../../workoutt),
@@ -213,7 +213,7 @@ assumption: `getSyncUrl()` returns `''` when unset, so the client fetches
 `internal/gateway/shim.go` recovers the context from `Referer`: a root-absolute
 request whose path matches a configured `APIPrefix` and whose referring page is
 under `/alice/readerr/` is re-attributed to that instance and rejoins the
-lifecycle at step 3. This is the single reason the multiplexer works against
+lifecycle at step 3. This is the single reason muxerr works against
 unmodified checkouts, and it is why `api_prefixes` in `apps.json` must list
 every API route the app has — `/sync/`, `/healthz`, `/backup`, plus readerr's
 `/title` and `/dbsize` and workoutt's `/push/`.
@@ -227,7 +227,7 @@ first place; it is offered, not applied.
 ## Layout
 
 ```
-local-multiplexer/
+muxerr/
 ├── apps.json              the only configuration; both commands read it
 ├── cmd/
 │   ├── mux/               the gateway

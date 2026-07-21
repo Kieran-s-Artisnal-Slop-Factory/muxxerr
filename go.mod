@@ -1,4 +1,4 @@
-module local-multiplexer
+module muxerr
 
 go 1.25.0
 

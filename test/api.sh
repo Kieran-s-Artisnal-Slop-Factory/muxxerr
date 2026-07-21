@@ -1,5 +1,5 @@
 #!/bin/bash
-# End-to-end journey against a freshly-initialised multiplexer.
+# End-to-end journey against a freshly-initialised muxerr.
 # MSYS_NO_PATHCONV stops Git Bash rewriting leading-slash values into
 # Windows paths before curl ever sees them.
 export MSYS_NO_PATHCONV=1

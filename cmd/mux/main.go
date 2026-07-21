@@ -1,4 +1,4 @@
-// mux is the multiplexer: one process that authenticates people and fronts a
+// mux is muxerr: one process that authenticates people and fronts a
 // private instance of each configured app for each of them.
 //
 // Run `muxbuild` first — it compiles each app's backend and builds each
@@ -28,12 +28,12 @@ import (
 	"syscall"
 	"time"
 
-	"local-multiplexer/internal/auth"
-	"local-multiplexer/internal/config"
-	"local-multiplexer/internal/gateway"
-	"local-multiplexer/internal/store"
-	"local-multiplexer/internal/supervisor"
-	"local-multiplexer/internal/web"
+	"muxerr/internal/auth"
+	"muxerr/internal/config"
+	"muxerr/internal/gateway"
+	"muxerr/internal/store"
+	"muxerr/internal/supervisor"
+	"muxerr/internal/web"
 )
 
 func main() {
@@ -142,7 +142,7 @@ func run() error {
 			slog.Info("no accounts yet — the first sign-up becomes the administrator",
 				"url", "http://localhost"+portOf(cfg.Site.Addr)+"/signup")
 		}
-		slog.Info("multiplexer listening", "addr", cfg.Site.Addr, "apps", len(cfg.Apps))
+		slog.Info("muxerr listening", "addr", cfg.Site.Addr, "apps", len(cfg.Apps))
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}

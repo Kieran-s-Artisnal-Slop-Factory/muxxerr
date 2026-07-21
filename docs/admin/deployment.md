@@ -1,6 +1,6 @@
 # Deployment
 
-Running the multiplexer as a container, and putting HTTPS in front of it.
+Running muxerr as a container, and putting HTTPS in front of it.
 
 This page is about getting it up and keeping it reachable. What to do once it is
 running — bootstrapping the admin, users, exports, backups, the security caveats
@@ -9,8 +9,8 @@ running — bootstrapping the admin, users, exports, backups, the security cavea
 ## Quick start
 
 ```bash
-git clone --recursive https://github.com/Kieran-s-Artisnal-Slop-Factory/local-multiplexer
-cd local-multiplexer
+git clone --recursive https://github.com/Kieran-s-Artisnal-Slop-Factory/muxerr
+cd muxerr
 cp .env.example .env        # optional: port, timezone, pepper, image
 docker compose up -d
 ```

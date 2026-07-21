@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"local-multiplexer/internal/config"
+	"muxerr/internal/config"
 
 	_ "modernc.org/sqlite"
 )

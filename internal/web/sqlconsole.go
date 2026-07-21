@@ -33,8 +33,8 @@ import (
 	"strings"
 	"time"
 
-	"local-multiplexer/internal/config"
-	"local-multiplexer/internal/store"
+	"muxerr/internal/config"
+	"muxerr/internal/store"
 )
 
 // ConsolePhrase is what has to be typed, exactly, to unlock the console.

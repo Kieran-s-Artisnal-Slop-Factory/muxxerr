@@ -1,5 +1,5 @@
 <!--
-  local multiplexer — app icon.
+  muxerr — app icon.
 
   The mark is a branching path: one gateway node on the left (the single door
   you log in through) fanning out through two waypoints into four leaf nodes
@@ -17,7 +17,7 @@
   and needs the extra grid resolution to keep the fan spacing even without
   fractional coordinates everywhere. The favicon, which has one tier, uses 32.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="local multiplexer">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="muxerr">
   <style>
     @media (prefers-color-scheme: dark) {
       /* Sink the plate, raise the network: against near-black browser chrome

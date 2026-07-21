@@ -1,7 +1,7 @@
-# Build the multiplexer image — the gateway plus every app in apps.json,
+# Build muxerr image — the gateway plus every app in apps.json,
 # compiled and built — and publish it to the GitHub Container Registry (GHCR).
 #
-# Images land at ghcr.io/<owner>/local-multiplexer with tags:
+# Images land at ghcr.io/<owner>/muxerr with tags:
 #   - latest            (default branch, which is master here)
 #   - <branch>          (any other branch push)
 #   - <version>, <maj>.<min>, <maj>   (git tags like v1.2.3)
@@ -27,7 +27,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }} # <owner>/local-multiplexer (GHCR wants lowercase)
+  IMAGE_NAME: ${{ github.repository }} # <owner>/muxerr (GHCR wants lowercase)
 
 concurrency:
   group: docker-${{ github.ref }}

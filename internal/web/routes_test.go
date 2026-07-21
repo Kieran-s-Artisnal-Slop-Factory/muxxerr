@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"local-multiplexer/internal/config"
+	"muxerr/internal/config"
 )
 
 func routeTestConfig(t *testing.T) *config.Config {

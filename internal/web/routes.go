@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"local-multiplexer/internal/config"
-	"local-multiplexer/internal/gateway"
+	"muxerr/internal/config"
+	"muxerr/internal/gateway"
 )
 
 // Routes builds the whole URL space.

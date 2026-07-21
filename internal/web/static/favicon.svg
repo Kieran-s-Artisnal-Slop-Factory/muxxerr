@@ -1,5 +1,5 @@
 <!--
-  local multiplexer — favicon. Same idea as icon.svg, rebuilt for 16-32px
+  muxerr — favicon. Same idea as icon.svg, rebuilt for 16-32px
   rather than scaled down from it.
 
   What changed and why: the middle tier of waypoints is gone (one gateway
@@ -15,7 +15,7 @@
   off pixel boundaries at 16px. cmd/muxicons reproduces this geometry
   literally for the .ico and the apple-touch PNG.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="local multiplexer">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="muxerr">
   <style>
     @media (prefers-color-scheme: dark) {
       .plate { fill: #0A5A6E; }

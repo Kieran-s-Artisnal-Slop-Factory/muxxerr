@@ -1,4 +1,4 @@
-# local-multiplexer
+# muxerr
 
 An authentication gateway that turns single-tenant, no-auth, local-first apps
 into multi-tenant ones — without modifying them.
@@ -39,8 +39,8 @@ Longer version, with the reasoning and the rejected alternatives:
 ### With Docker (nothing to install but Docker)
 
 ```bash
-git clone --recurse-submodules https://github.com/<you>/local-multiplexer
-cd local-multiplexer
+git clone --recurse-submodules https://github.com/<you>/muxerr
+cd muxerr
 docker compose up -d
 ```
 
@@ -53,8 +53,8 @@ HTTPS, backups and upgrades: [docs/admin/deployment.md](docs/admin/deployment.md
 Requirements: Go 1.25+, Node 20+ (for the app frontends), and git.
 
 ```bash
-git clone --recurse-submodules https://github.com/<you>/local-multiplexer
-cd local-multiplexer
+git clone --recurse-submodules https://github.com/<you>/muxerr
+cd muxerr
 
 # 1. Build every configured app: compile each Go backend, and build each
 #    frontend with --base=/__MUX__ into runtime/apps/<name>/dist.

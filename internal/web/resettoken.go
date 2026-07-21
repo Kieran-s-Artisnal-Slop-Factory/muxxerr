@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"local-multiplexer/internal/auth"
+	"muxerr/internal/auth"
 )
 
 // resetTokenTTL bounds the window between proving ownership of a passphrase

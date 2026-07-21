@@ -17,8 +17,8 @@ import (
 	"net/http"
 	"sort"
 
-	"local-multiplexer/internal/config"
-	"local-multiplexer/internal/store"
+	"muxerr/internal/config"
+	"muxerr/internal/store"
 )
 
 type viewerApp struct {

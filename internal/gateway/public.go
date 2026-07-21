@@ -28,7 +28,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"local-multiplexer/internal/config"
+	"muxerr/internal/config"
 )
 
 // publicAssets are served without a session. Every entry has to be justified

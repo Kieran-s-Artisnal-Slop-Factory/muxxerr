@@ -20,7 +20,7 @@ Every caller then does `fetch(`${base}/sync/pull`)`. With no configured URL,
 
 That is exactly right in the deployment the apps were written for — the Go
 backend serves the built frontend, so the origin root *is* the backend. It is
-wrong under the multiplexer, where the same origin hosts many instances and the
+wrong under muxerr, where the same origin hosts many instances and the
 backend for this user's copy lives at `/alice/readerr/sync/pull`.
 
 The gateway compensates with the `Referer` shim (`internal/gateway/shim.go`).
@@ -50,7 +50,7 @@ Currently at lines 36-38:
 +  // No configured URL means same-origin. The base the app was built with is
 +  // the correct same-origin prefix: '' at the root (the Go backend serving
 +  // its own frontend), '/readerr' on GitHub Pages, '/alice/readerr' behind
-+  // the multiplexer, whose sentinel base is rewritten per user at serve time.
++  // muxerr, whose sentinel base is rewritten per user at serve time.
 +  // BASE_URL always ends in '/', which the templates supply themselves.
 +  return localStorage.getItem(SYNC_URL_KEY) ?? import.meta.env.BASE_URL.replace(/\/+$/, '');
  }
@@ -67,7 +67,7 @@ imports `recordSyncEvent` from `./services/syncLog`, workoutt has no sync log):
 +  // No configured URL means same-origin. The base the app was built with is
 +  // the correct same-origin prefix: '' at the root (the Go backend serving
 +  // its own frontend), '/workoutt' on GitHub Pages, '/alice/workoutt' behind
-+  // the multiplexer, whose sentinel base is rewritten per user at serve time.
++  // muxerr, whose sentinel base is rewritten per user at serve time.
 +  // BASE_URL always ends in '/', which the templates supply themselves.
 +  return localStorage.getItem(SYNC_URL_KEY) ?? import.meta.env.BASE_URL.replace(/\/+$/, '');
  }
@@ -98,7 +98,7 @@ calls are the only others, and they go through the same base.
   rewrite `/__MUX__` inside JS, but `'/sync/pull'` contains no sentinel — you
   would be pattern-matching arbitrary string literals in minified output. No.
 - **Inject a `<base>` tag or a global `window.__MUX_BASE__`.** Works, but it
-  makes the app depend on the multiplexer to run at all, and it does not reach
+  makes the app depend on muxerr to run at all, and it does not reach
   code running inside the service worker. `BASE_URL` is already there, already
   build-time-correct, and already the mechanism `paths.ts` uses.
 - **Keep relying on the shim.** It stays in the gateway either way, for

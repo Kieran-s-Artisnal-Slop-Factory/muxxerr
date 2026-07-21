@@ -1,4 +1,4 @@
-# local-multiplexer — one image holding the gateway plus every app declared in
+# muxerr — one image holding the gateway plus every app declared in
 # apps.json, already compiled and already built.
 #
 # The sibling images (readerr/Dockerfile, workoutt/Dockerfile) can be a `go

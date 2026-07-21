@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"local-multiplexer/internal/config"
+	"muxerr/internal/config"
 )
 
 // Fetching a `git+` source.

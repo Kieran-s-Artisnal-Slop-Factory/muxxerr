@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	"local-multiplexer/internal/config"
+	"muxerr/internal/config"
 )
 
 func testConfig(t *testing.T) *config.Config {

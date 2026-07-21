@@ -7,7 +7,7 @@ this one: Cache Storage lives in the browser, where the server has no reach.
 
 ## The problem
 
-Cache Storage is keyed by **origin**, not by scope. Under the multiplexer both
+Cache Storage is keyed by **origin**, not by scope. Under muxerr both
 apps share `http://localhost:8080`, so they share one cache namespace — and
 both service workers were written on the assumption that they own it.
 
@@ -50,7 +50,7 @@ scoped to one app's namespace.
 
 ```diff
 +// Everything this app is allowed to delete. Cache Storage is keyed by origin,
-+// not by service-worker scope, so under a multiplexer (or any deployment that
++// not by service-worker scope, so under a muxerr (or any deployment that
 +// puts two of these apps on one host) a bare "delete every key that isn't
 +// mine" makes the two apps evict each other on every activation. Deleting only
 +// our own prefix keeps the version bump working — CACHE_VERSION is
@@ -86,7 +86,7 @@ someone renames a cache.
 
 Worth being explicit: this isolates *apps* from each other, not *users*. Two
 users of the same app on the same browser profile still share `readerr-v2`.
-That is not a new problem introduced by the multiplexer — it is the general
+That is not a new problem introduced by muxerr — it is the general
 "shared browser" caveat covered in
 [docs/admin/operations.md](../docs/admin/operations.md), and it is why the
 gateway sets `Cache-Control: no-store` on API responses and why signing out
@@ -117,7 +117,7 @@ if ('serviceWorker' in navigator) {
 that is the intent (nuke everything, the worker must not run), and if your dev
 server is a dedicated port serving one app it is harmless. It stops being
 harmless the moment you run a dev build on the same origin as anything else, or
-point a dev frontend at the multiplexer's port.
+point a dev frontend at muxerr's port.
 
 Same shape of fix, readerr shown:
 
@@ -125,7 +125,7 @@ Same shape of fix, readerr shown:
    if (window.caches) {
 -    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
 +    // Only ours: this page may share an origin with other apps (the
-+    // multiplexer serves several under one host), and dropping their caches
++    // muxerr serves several under one host), and dropping their caches
 +    // is not this script's business.
 +    caches.keys().then((keys) => keys.filter((k) => k.startsWith('readerr-')).forEach((k) => caches.delete(k)));
    }

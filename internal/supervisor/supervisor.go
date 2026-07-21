@@ -50,7 +50,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"local-multiplexer/internal/config"
+	"muxerr/internal/config"
 )
 
 const (

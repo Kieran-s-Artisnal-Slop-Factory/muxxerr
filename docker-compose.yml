@@ -23,9 +23,9 @@ services:
     # The owner here must match wherever this repository actually lives — CI
     # derives it automatically from ${{ github.repository }}, but a compose
     # file has to be told. Override MUX_IMAGE in .env rather than editing this.
-    image: ${MUX_IMAGE:-ghcr.io/kieran-s-artisnal-slop-factory/local-multiplexer:latest}
+    image: ${MUX_IMAGE:-ghcr.io/kieran-s-artisnal-slop-factory/muxerr:latest}
     # Pin to a release instead of a moving tag for reproducible deploys, e.g.
-    #   MUX_IMAGE=ghcr.io/kieran-s-artisnal-slop-factory/local-multiplexer:v1.0.0
+    #   MUX_IMAGE=ghcr.io/kieran-s-artisnal-slop-factory/muxerr:v1.0.0
     ports:
       # host:container. Change only the left side, via MUX_PORT in .env — the
       # right side is fixed by PORT in the image. Bind to loopback when a

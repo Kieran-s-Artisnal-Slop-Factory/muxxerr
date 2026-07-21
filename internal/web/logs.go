@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"local-multiplexer/internal/config"
-	"local-multiplexer/internal/supervisor"
+	"muxerr/internal/config"
+	"muxerr/internal/supervisor"
 )
 
 // logTailDefault is what the page shows. The supervisor keeps rather more than

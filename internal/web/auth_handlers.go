@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"local-multiplexer/internal/auth"
-	"local-multiplexer/internal/store"
+	"muxerr/internal/auth"
+	"muxerr/internal/store"
 )
 
 type loginView struct {
