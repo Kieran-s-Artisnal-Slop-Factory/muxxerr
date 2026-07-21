@@ -63,6 +63,18 @@ type Site struct {
 	// browsing as someone else is a bigger power than this needs.
 	AllowAdminImpersonation bool `json:"allow_admin_impersonation"`
 
+	// TrustedProxies are CIDR ranges (or bare addresses) whose
+	// X-Forwarded-For header is believed. Loopback is always trusted and does
+	// not need listing.
+	//
+	// This matters more than it looks. The login throttle counts failures per
+	// IP; behind a reverse proxy on a container network every request appears
+	// to come from one bridge address, so without this one person's typos lock
+	// out everybody. Naming the proxy fixes it. Naming something you do not
+	// control lets that thing forge the key the throttle counts against, so
+	// name only proxies you run.
+	TrustedProxies []string `json:"trusted_proxies"`
+
 	// SQLConsole enables the live SQL console — arbitrary statements against a
 	// real instance database, with no undo. Off by default and deliberately
 	// not toggleable from the admin UI: on a server with open sign-ups this
@@ -263,6 +275,10 @@ func (c *Config) Validate() error {
 		}
 		if a.Source == "" {
 			add("app %q: source is required", a.Name)
+		} else if a.IsRemote() {
+			if _, err := a.Remote(); err != nil {
+				add("%s", err.Error())
+			}
 		}
 		if a.BasePlaceholder != "" && !strings.HasPrefix(a.BasePlaceholder, "/") {
 			add("app %q: base_placeholder must start with /", a.Name)
@@ -312,7 +328,16 @@ func (c *Config) App(name string) (*App, bool) {
 }
 
 // SourceDir is the app's repository root as an absolute path.
-func (c *Config) SourceDir(a *App) string { return c.abs(a.Source) }
+//
+// For a git+ source this is the build cache, which only exists after muxbuild
+// has fetched it — see source.go. Everything downstream of this point treats
+// all three source forms identically, which is the point of resolving here.
+func (c *Config) SourceDir(a *App) string {
+	if a.IsRemote() {
+		return c.CacheDir(a)
+	}
+	return c.abs(a.Source)
+}
 
 // FrontendSrc is where the frontend is built from.
 func (c *Config) FrontendSrc(a *App) string {

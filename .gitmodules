@@ -1,0 +1,8 @@
+[submodule "apps/readerr"]
+	path = apps/readerr
+	url = https://github.com/Kieran-s-Artisnal-Slop-Factory/readerr.git
+	branch = main
+[submodule "apps/workoutt"]
+	path = apps/workoutt
+	url = https://github.com/Kieran-s-Artisnal-Slop-Factory/workoutt.git
+	branch = master

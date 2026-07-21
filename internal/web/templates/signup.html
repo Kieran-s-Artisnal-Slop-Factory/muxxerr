@@ -37,6 +37,22 @@
 						Letters, numbers, dashes and underscores. This appears in the address of
 						every app you open, so it can't be changed later.
 					</p>
+					{{/*
+						A live preview of the URL the name produces. "It can't be changed
+						later" is easy to skim past; seeing your own name appear inside a
+						path is not. The example app comes from the server so it names one
+						that actually exists here rather than an invented one.
+
+						Rendered server-side with the placeholder already in it, so the
+						element is not an empty gap before the script runs and is still
+						meaningful with scripting off.
+					*/}}
+					<p class="url-preview" id="url-preview" aria-live="polite">
+						Your apps will live at
+						<code><span class="url-preview__host">{{.Host}}</span>/<span
+							class="url-preview__name" id="url-preview-name">{{if .Username}}{{.Username}}{{else}}your-name{{end}}</span>/<span
+							class="url-preview__app">{{.ExampleApp}}</span></code>
+					</p>
 				</div>
 
 				<div class="field">
@@ -68,4 +84,29 @@
 		Already have an account? <a href="/login">Sign in</a>
 	</p>
 </div>
+
+<script>
+(function () {
+	var field = document.getElementById("username");
+	var out = document.getElementById("url-preview-name");
+	if (!field || !out) return;
+
+	// The same normalisation the server applies (NormaliseUsername plus the
+	// character rule in ValidateUsername), so the preview shows the address you
+	// will actually get rather than the characters you typed. Someone entering
+	// "Kieran Wood" should see kieran-wood before they submit, not after.
+	function normalise(v) {
+		return v.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+	}
+
+	function paint() {
+		var name = normalise(field.value);
+		out.textContent = name || "your-name";
+		out.classList.toggle("url-preview__name--placeholder", !name);
+	}
+
+	field.addEventListener("input", paint);
+	paint();
+})();
+</script>
 {{end}}

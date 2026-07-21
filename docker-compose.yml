@@ -1,0 +1,62 @@
+# Ready-to-go deployment using the prebuilt image from GHCR.
+#
+#   cp .env.example .env      # optional — port, timezone, pepper
+#   docker compose up -d
+#
+# Then open http://localhost:8080 and sign up. The FIRST account created
+# becomes the administrator, and there is no default credential to change
+# afterwards, so create yours before you hand out the address.
+#
+# Everything that must outlive the container is in ./data on the HOST (a bind
+# mount, not a Docker-managed volume, so mux.db and each user's app database
+# are real files you can back up and inspect). One of those files is
+# pepper.key, and losing it makes every account on the system permanently
+# unrecoverable — see .env.example and docs/admin/operations.md before you set
+# up backups.
+#
+# Plain HTTP. For TLS, put a reverse proxy in front and flip secure_cookies:
+# docs/admin/deployment.md.
+#
+# To build from source instead, use docker-compose.build.yml.
+services:
+  mux:
+    # The owner here must match wherever this repository actually lives — CI
+    # derives it automatically from ${{ github.repository }}, but a compose
+    # file has to be told. Override MUX_IMAGE in .env rather than editing this.
+    image: ${MUX_IMAGE:-ghcr.io/kieran-s-artisnal-slop-factory/local-multiplexer:latest}
+    # Pin to a release instead of a moving tag for reproducible deploys, e.g.
+    #   MUX_IMAGE=ghcr.io/kieran-s-artisnal-slop-factory/local-multiplexer:v1.0.0
+    ports:
+      # host:container. Change only the left side, via MUX_PORT in .env — the
+      # right side is fixed by PORT in the image. Bind to loopback when a
+      # reverse proxy on this same host is the only thing that should reach it:
+      #   MUX_PORT=8080 and "127.0.0.1:${MUX_PORT:-8080}:8080"
+      - "${MUX_PORT:-8080}:8080"
+    environment:
+      # The gateway's own listen port inside the container. Leave it alone;
+      # MUX_PORT above is the knob.
+      PORT: "8080"
+      # Children inherit this. workoutt builds reminder instants in local time,
+      # so a wrong TZ sends notifications at the wrong hour rather than failing.
+      TZ: ${TZ:-UTC}
+      # Empty by default, which means "use data/pepper.key in the volume".
+      # Read .env.example before setting it. This is the one variable that can
+      # lock everyone out of the system.
+      MUX_PEPPER: ${MUX_PEPPER:-}
+    volumes:
+      # Host ./data <-> container /srv/data. mux.db, pepper.key and
+      # instances/<user>/<app>/<app>.db all appear here.
+      - ./data:/srv/data
+      # Uncomment to run your own config — this is how you set
+      # "secure_cookies": true once TLS terminates upstream. Keep data_dir as
+      # the relative "data" or the gateway will write outside the mount.
+      # - ./apps.json:/srv/apps.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      # First boot creates the database, runs migrations and starts any
+      # always_on instances before the listener answers.
+      start_period: 15s

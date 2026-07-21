@@ -1538,3 +1538,47 @@ button.link-quiet {
 		min-width: 0;
 	}
 }
+
+/* ------------------------------------------------------------------ *
+ * Sign-up URL preview
+ *
+ * A username becomes a permanent path segment. The hint text says so, but
+ * text about a URL is much weaker than the URL itself, so the name appears
+ * inside a real-looking address as it is typed.
+ * ------------------------------------------------------------------ */
+
+.url-preview {
+	margin-top: var(--s-2);
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+}
+
+.url-preview code {
+	display: inline-block;
+	margin-top: var(--s-1);
+	padding: 0.25rem var(--s-2);
+	background: var(--accent-soft);
+	border: 1px solid var(--accent-line);
+	/* A long username should wrap rather than widen the card. */
+	overflow-wrap: anywhere;
+}
+
+.url-preview__host,
+.url-preview__app {
+	color: var(--text-muted);
+}
+
+/* The typed part carries the accent so the eye lands on the bit that is
+   actually the person's choice. */
+.url-preview__name {
+	color: var(--accent);
+	font-weight: 650;
+}
+
+/* Before anything is typed it is an example, not a value. Italic and faded
+   keeps "your-name" from reading as a name that has been claimed. */
+.url-preview__name--placeholder {
+	color: var(--text-muted);
+	font-weight: 400;
+	font-style: italic;
+}

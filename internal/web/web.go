@@ -85,6 +85,8 @@ type Server struct {
 	icons map[string]string
 	// assetVer fingerprints the embedded static files; see staticVersion.
 	assetVer string
+	// trusted is site.trusted_proxies, parsed once. See clientip.go.
+	trusted trustedProxies
 }
 
 // New parses every page template up front: a template error should stop the
@@ -99,6 +101,12 @@ func New(cfg *config.Config, st *store.Store, pepper auth.Pepper, sup *superviso
 		consoleTokens: newResetTokenStore(),
 		assetVer:      computeAssetVersion(),
 	}
+	trusted, err := parseTrustedProxies(cfg.Site.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
+	s.trusted = trusted
+
 	pages, err := fs.Glob(templateFS, "templates/*.html")
 	if err != nil {
 		return nil, err
@@ -234,7 +242,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u *store.U
 		return err
 	}
 	ttl := s.cfg.Site.SessionTTL.D()
-	if err := s.store.CreateSession(r.Context(), token, u, ttl, r.UserAgent(), clientIP(r)); err != nil {
+	if err := s.store.CreateSession(r.Context(), token, u, ttl, r.UserAgent(), s.clientIP(r)); err != nil {
 		return err
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -272,26 +280,6 @@ func clearCookie(w http.ResponseWriter, name, path string, secure bool) {
 		HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
 		Expires: time.Unix(0, 0), MaxAge: -1,
 	})
-}
-
-// clientIP prefers the socket address. X-Forwarded-For is honoured only when
-// the immediate peer is loopback, because anywhere else it is just a header
-// the client chose — and using it unconditionally would let anyone forge the
-// key the login throttle counts against.
-func clientIP(r *http.Request) string {
-	host, _, err := splitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if isLoopbackAddr(host) {
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			if first, _, ok := strings.Cut(fwd, ","); ok {
-				return strings.TrimSpace(first)
-			}
-			return strings.TrimSpace(fwd)
-		}
-	}
-	return host
 }
 
 // ------------------------------------------------------------------ CSRF
@@ -423,7 +411,7 @@ func (s *Server) signupsOpen(ctx context.Context) bool {
 // audit records an action, logging rather than failing if the write does not
 // land: an audit failure must never break the operation it describes.
 func (s *Server) audit(r *http.Request, actor, action, target, detail string) {
-	if err := s.store.Audit(r.Context(), actor, action, target, detail, clientIP(r)); err != nil {
+	if err := s.store.Audit(r.Context(), actor, action, target, detail, s.clientIP(r)); err != nil {
 		slog.Warn("audit write failed", "action", action, "error", err)
 	}
 }

@@ -12,7 +12,7 @@
 
   viewBox is 0 0 32 32: one tier of nodes needs no more grid than that, and
   keeping every coordinate on a coarse grid is what stops the mark drifting
-  off pixel boundaries at 16px. make-icons.py reproduces this geometry
+  off pixel boundaries at 16px. cmd/muxicons reproduces this geometry
   literally for the .ico and the apple-touch PNG.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="local multiplexer">

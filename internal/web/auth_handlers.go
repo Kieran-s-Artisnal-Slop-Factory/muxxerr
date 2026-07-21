@@ -31,6 +31,12 @@ type loginView struct {
 type signupView struct {
 	Page     PageData
 	Username string
+	// Host and ExampleApp drive the live URL preview under the username field.
+	// A username becomes a permanent path segment, and "this can't be changed
+	// later" is easy to skim past in a way that watching your own name appear
+	// inside a URL is not.
+	Host       string
+	ExampleApp string
 }
 
 type passphraseView struct {
@@ -85,7 +91,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Throttle on the account and on the source address independently, so one
 	// user being attacked cannot lock out the whole server and one address
 	// cannot spray across many accounts.
-	keys := []string{"login:" + username, "login:ip:" + clientIP(r)}
+	keys := []string{"login:" + username, "login:ip:" + s.clientIP(r)}
 	for _, k := range keys {
 		if locked, until, err := s.store.CheckThrottle(ctx, k); err == nil && locked {
 			show("Too many attempts. Try again in " + humanUntil(until) + ".")
@@ -188,7 +194,7 @@ func (s *Server) HandleSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
-		s.render(w, r, "signup", http.StatusOK, signupView{Page: s.page(w, r, "Create an account")})
+		s.render(w, r, "signup", http.StatusOK, s.signupPage(w, r, "", ""))
 		return
 	}
 	if !s.checkCSRF(w, r) {
@@ -200,9 +206,7 @@ func (s *Server) HandleSignup(w http.ResponseWriter, r *http.Request) {
 	confirm := r.PostFormValue("password_confirm")
 
 	show := func(code int, msg string) {
-		v := signupView{Page: s.page(w, r, "Create an account"), Username: username}
-		v.Page.Error = msg
-		s.render(w, r, "signup", code, v)
+		s.render(w, r, "signup", code, s.signupPage(w, r, username, msg))
 	}
 
 	if msg := ValidateUsername(username); msg != "" {
@@ -271,6 +275,42 @@ func (s *Server) HandleSignup(w http.ResponseWriter, r *http.Request) {
 		Passphrase: passphrase,
 	}
 	s.render(w, r, "passphrase", http.StatusOK, v)
+}
+
+// signupPage assembles the sign-up view, including the URL preview.
+func (s *Server) signupPage(w http.ResponseWriter, r *http.Request, username, errMsg string) signupView {
+	v := signupView{
+		Page:       s.page(w, r, "Create an account"),
+		Username:   username,
+		Host:       previewHost(r),
+		ExampleApp: s.exampleAppName(),
+	}
+	v.Page.Error = errMsg
+	return v
+}
+
+// exampleAppName names a real app in the preview rather than an invented one,
+// so the example is something the reader can go and look at.
+func (s *Server) exampleAppName() string {
+	if len(s.cfg.Apps) > 0 {
+		return s.cfg.Apps[0].Name
+	}
+	return "app"
+}
+
+// previewHost is the Host header, used only as display text in the preview.
+//
+// It is echoed back into the page, so it is checked rather than trusted: the
+// value is whatever the client sent, and while html/template makes injection a
+// non-issue, a page reading "Your apps will live at <500 characters of
+// nonsense>" is its own small failure. Anything that is not a plausible
+// host[:port] is dropped and the preview falls back to showing just the path.
+func previewHost(r *http.Request) string {
+	h := r.Host
+	if h == "" || len(h) > 100 || !hostRe.MatchString(h) {
+		return ""
+	}
+	return h
 }
 
 func capitalise(s string) string {
@@ -386,7 +426,7 @@ func (s *Server) HandleReset(w http.ResponseWriter, r *http.Request) {
 
 	default: // "verify"
 		key := "reset:" + username
-		ipKey := "reset:ip:" + clientIP(r)
+		ipKey := "reset:ip:" + s.clientIP(r)
 		for _, k := range []string{key, ipKey} {
 			if locked, until, err := s.store.CheckThrottle(ctx, k); err == nil && locked {
 				show(http.StatusTooManyRequests, "verify",

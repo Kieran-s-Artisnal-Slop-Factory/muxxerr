@@ -4,7 +4,10 @@
 // Run `muxbuild` first — it compiles each app's backend and builds each
 // frontend with the sentinel base the gateway rewrites. Then:
 //
-//	mux -config apps.json
+//	mux
+//
+// Both commands find apps.json themselves: the working directory first, then
+// beside the binary. -config only exists for when it lives somewhere else.
 //
 // The first account to sign up becomes the administrator. There is no default
 // password to forget to change, and no bootstrap credential printed to a log
@@ -20,6 +23,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -40,7 +45,7 @@ func main() {
 
 func run() error {
 	var (
-		configPath = flag.String("config", "apps.json", "path to apps.json")
+		configPath = flag.String("config", "", "path to apps.json (default: search the working directory, then next to the binary)")
 		addr       = flag.String("addr", "", "listen address (overrides site.addr)")
 		verbose    = flag.Bool("v", false, "debug logging")
 	)
@@ -52,9 +57,19 @@ func run() error {
 	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 
-	cfg, err := config.Load(*configPath)
+	cfg, err := config.LoadDefault(*configPath)
 	if err != nil {
 		return err
+	}
+	// Precedence: -addr beats PORT beats apps.json. The env var exists for
+	// containers, where editing a file baked into the image to change a port
+	// would be absurd; the flag stays on top because someone typing it is being
+	// more explicit than an inherited environment.
+	if p := strings.TrimSpace(os.Getenv("PORT")); p != "" {
+		if _, err := strconv.Atoi(p); err != nil {
+			return fmt.Errorf("PORT=%q is not a number", p)
+		}
+		cfg.Site.Addr = ":" + p
 	}
 	if *addr != "" {
 		cfg.Site.Addr = *addr
@@ -209,8 +224,8 @@ func checkArtifacts(cfg *config.Config) error {
 		}
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("build artifacts are missing — run `muxbuild -config %s` first:\n  - %s",
-			"apps.json", joinLines(missing))
+		return fmt.Errorf("build artifacts are missing — run `muxbuild` first:\n  - %s",
+			joinLines(missing))
 	}
 	return nil
 }

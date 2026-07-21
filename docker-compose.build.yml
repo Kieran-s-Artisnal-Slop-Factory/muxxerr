@@ -1,0 +1,35 @@
+# Build the image from source in this checkout (for development, or to run
+# without pulling from GHCR).
+#
+#   git submodule update --init --recursive     # see below
+#   docker compose -f docker-compose.build.yml up --build
+#
+# The submodule line is not required — the Dockerfile clones any app source
+# that arrives empty — but without it you get each app's branch TIP rather than
+# the commit this repository pins, and the build spends time on network it did
+# not need to. Run it once and every later build is offline for the sources.
+#
+# Expect the first build to be slow: it is `npm ci` plus a full Astro build per
+# app, plus a Go compile per app, plus the gateway.
+#
+# Same runtime shape as docker-compose.yml: data bind-mounted to ./data, the
+# gateway on host port ${MUX_PORT:-8080}.
+services:
+  mux:
+    build: .
+    ports:
+      - "${MUX_PORT:-8080}:8080"
+    environment:
+      PORT: "8080"
+      TZ: ${TZ:-UTC}
+      MUX_PEPPER: ${MUX_PEPPER:-}
+    volumes:
+      - ./data:/srv/data
+      # - ./apps.json:/srv/apps.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s

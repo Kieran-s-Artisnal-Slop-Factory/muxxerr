@@ -1,0 +1,96 @@
+# Build the multiplexer image — the gateway plus every app in apps.json,
+# compiled and built — and publish it to the GitHub Container Registry (GHCR).
+#
+# Images land at ghcr.io/<owner>/local-multiplexer with tags:
+#   - latest            (default branch, which is master here)
+#   - <branch>          (any other branch push)
+#   - <version>, <maj>.<min>, <maj>   (git tags like v1.2.3)
+#   - sha-<short>       (every build, for pinning)
+#
+# Pull requests build (to catch breakage) but do NOT push.
+#
+# The one real difference from the single-app repos: the app sources are
+# submodules, so the checkout below is recursive. Without that, the Dockerfile
+# falls back to cloning each app's branch tip — which works, but would mean the
+# published image contains whatever the apps happened to look like at build
+# time rather than the commits this repository pins. A release image should be
+# reproducible from its own git history.
+name: Docker image
+
+on:
+  push:
+    branches: ["master"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }} # <owner>/local-multiplexer (GHCR wants lowercase)
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The app sources live under apps/ as submodules. Empty directories
+          # here mean the Dockerfile clones branch tips instead of the pinned
+          # commits.
+          submodules: recursive
+
+      # QEMU + Buildx enable multi-arch builds (amd64 for servers, arm64 for
+      # Raspberry Pi / Apple-silicon hosts). The Dockerfile cross-compiles both
+      # the gateway and every app backend, and the Astro output is
+      # arch-independent, so this is mostly for the final-image assembly.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Only log in on real pushes — PRs from forks can't access secrets and
+      # shouldn't publish anyway.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image tags & labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false # smaller manifest; flip on if you want SLSA attestations

@@ -2,7 +2,6 @@ package web
 
 import (
 	"crypto/subtle"
-	"net"
 	"regexp"
 	"strings"
 
@@ -20,12 +19,8 @@ func subtleCompare(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
 
-func splitHostPort(addr string) (string, string, error) { return net.SplitHostPort(addr) }
-
-func isLoopbackAddr(host string) bool {
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
-}
+// hostRe matches a plausible host[:port] for display in the sign-up preview.
+var hostRe = regexp.MustCompile(`^[A-Za-z0-9._-]+(:[0-9]{1,5})?$`)
 
 // usernameRe matches what can safely be a URL path segment and a directory
 // name on every platform this runs on: lowercase, no dots, no separators.

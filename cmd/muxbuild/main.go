@@ -65,7 +65,7 @@ func main() {
 	})))
 
 	var (
-		configPath   = flag.String("config", "apps.json", "path to apps.json")
+		configPath   = flag.String("config", "", "path to apps.json (default: search the working directory, then next to the binary)")
 		only         stringList
 		skipFrontend = flag.Bool("skip-frontend", false, "do not build frontends")
 		skipBackend  = flag.Bool("skip-backend", false, "do not compile Go backends")
@@ -88,13 +88,20 @@ func main() {
 }
 
 func run(configPath string, only stringList, skipFrontend, skipBackend, verbose, clean bool) error {
-	cfg, err := config.Load(configPath)
+	cfg, err := config.LoadDefault(configPath)
 	if err != nil {
 		return err
 	}
 
 	apps, err := selectApps(cfg, only)
 	if err != nil {
+		return err
+	}
+
+	// Remote sources are fetched before anything else, because the planning
+	// below decides what to build by looking at what is on disk — and for a
+	// git+ app, nothing is, until we put it there.
+	if err := fetchRemoteSources(cfg, apps, verbose); err != nil {
 		return err
 	}
 
