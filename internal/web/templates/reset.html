@@ -1,0 +1,100 @@
+{{/*
+	Password recovery, in two stages on one template.
+
+	Stage "verify" takes the username and the recovery passphrase. Stage
+	"choose" takes a new password and carries a short-lived token proving the
+	first stage was passed. Keeping both in one file means the copy about what
+	the passphrase is and what happens if it's gone lives in one place.
+
+	The passphrase goes in a <textarea>. It is six words and around fifty
+	characters; a single-line input turns that into a keyhole to proofread
+	through, and hiding it behind a password dot mask would be theatre — the
+	person is reading it off paper. autocomplete="one-time-code" is the closest
+	honest match: a single-use secret that a password manager should not file
+	away as the account password.
+
+	Whitespace and case are normalised server-side (auth.NormalisePassphrase),
+	so this page doesn't nag about formatting.
+*/}}
+{{define "title"}}Reset your password{{end}}
+
+{{define "content"}}
+<div class="auth">
+	<div class="card">
+		<div class="card__body stack">
+			{{if eq .Stage "choose"}}
+				<div class="page-head">
+					<h1>Choose a new password</h1>
+					<p class="muted">Passphrase accepted. Set a password and you're back in.</p>
+				</div>
+
+				<form method="post" action="/reset" class="stack">
+					{{.Page.CSRFField}}
+					<input type="hidden" name="stage" value="choose">
+					<input type="hidden" name="token" value="{{.Token}}">
+					<input type="hidden" name="username" value="{{.Username}}">
+
+					<div class="field">
+						<label for="password">New password</label>
+						<input id="password" name="password" type="password"
+							autocomplete="new-password" minlength="10"
+							aria-describedby="password-hint" required autofocus>
+						<p class="hint" id="password-hint">At least 10 characters.</p>
+					</div>
+
+					<div class="field">
+						<label for="password2">Confirm new password</label>
+						<input id="password2" name="password_confirm" type="password"
+							autocomplete="new-password" minlength="10" required>
+					</div>
+
+					<p class="note">
+						Every other signed-in session is ended when the password changes, on
+						the assumption that a reset might mean somebody else was in here.
+					</p>
+
+					<button class="btn btn--primary btn--block" type="submit">Set password</button>
+				</form>
+			{{else}}
+				<div class="page-head">
+					<h1>Reset your password</h1>
+					<p class="muted">Use the recovery passphrase you were given when you signed up.</p>
+				</div>
+
+				<form method="post" action="/reset" class="stack">
+					{{.Page.CSRFField}}
+					<input type="hidden" name="stage" value="verify">
+
+					<div class="field">
+						<label for="username">Username</label>
+						<input id="username" name="username" type="text" value="{{.Username}}"
+							autocomplete="username" autocapitalize="none" autocorrect="off"
+							spellcheck="false" required autofocus>
+					</div>
+
+					<div class="field">
+						<label for="passphrase">Recovery passphrase</label>
+						<textarea id="passphrase" name="passphrase" rows="2"
+							autocomplete="one-time-code" autocapitalize="none" autocorrect="off"
+							spellcheck="false" aria-describedby="passphrase-hint" required
+							placeholder="meadow-cobalt-jigsaw-hornet-fresco-lantern"></textarea>
+						<p class="hint" id="passphrase-hint">
+							Six words. Spaces or dashes, upper or lower case &mdash; all the same to us.
+						</p>
+					</div>
+
+					<button class="btn btn--primary btn--block" type="submit">Continue</button>
+				</form>
+
+				<p class="note">
+					No passphrase either? Nothing on this server can recover the account on
+					its own &mdash; ask the administrator to reset it. Your app data is untouched
+					by a reset; only the credentials change.
+				</p>
+			{{end}}
+		</div>
+	</div>
+
+	<p class="auth__aside"><a href="/login">Back to sign in</a></p>
+</div>
+{{end}}

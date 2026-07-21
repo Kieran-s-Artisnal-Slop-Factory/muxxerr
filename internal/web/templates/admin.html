@@ -1,0 +1,286 @@
+{{/*
+	Administration: people, their running processes, their databases, and a log
+	of what has been done to all three.
+
+	Every action here is a separate one-button POST form. No checkboxes, no
+	bulk actions, no menus. Admin screens in this shape are used a few times a
+	year, usually to deal with something that has already gone wrong, and the
+	failure mode worth designing against is "clicked the row above the one I
+	meant" — not "took four clicks instead of two". The destructive ones carry
+	data-confirm, which layout.html turns into a prompt when scripting is
+	available and which the server must independently refuse to trust.
+
+	Reads and writes are visually split: the account row shows state, the
+	buttons at the end of it change state, and the export is a plain GET link
+	because downloading somebody's database is a read and should behave like
+	one (right-click, save as, resumable).
+
+	The tables can be genuinely wide — a user with several apps, a running
+	instance with pid and port — so each lives in its own overflow-x container.
+	The page never scrolls sideways; the table does.
+
+	The .wide wrapper is what widens the layout container, per layout.html.
+*/}}
+{{define "title"}}Admin{{end}}
+
+{{define "content"}}
+<div class="wide stack stack--lg">
+	<div class="page-head">
+		<h1>Admin</h1>
+		<p class="muted">
+			{{len .Users}} {{if eq (len .Users) 1}}account{{else}}accounts{{end}},
+			{{len .Running}} running {{if eq (len .Running) 1}}instance{{else}}instances{{end}}.
+		</p>
+	</div>
+
+	{{/* ---------------------------------------------------------------- */}}
+
+	<section class="card" aria-labelledby="settings-heading">
+		<div class="card__head">
+			<h2 id="settings-heading">Settings</h2>
+		</div>
+		<div class="card__body">
+			<div class="setting">
+				<div class="setting__text">
+					<h3 class="setting__title">Open signups</h3>
+					<p class="muted">
+						{{if .SignupsEnabled}}
+							Anyone who can reach this server can create an account.
+						{{else}}
+							Signups are closed. New accounts have to be created by an administrator.
+						{{end}}
+					</p>
+				</div>
+				<form method="post" action="/admin/settings/signups">
+					{{.Page.CSRFField}}
+					{{if .SignupsEnabled}}
+						<input type="hidden" name="enabled" value="0">
+						<button class="btn" type="submit">Close signups</button>
+					{{else}}
+						<input type="hidden" name="enabled" value="1">
+						<button class="btn btn--primary" type="submit">Open signups</button>
+					{{end}}
+				</form>
+			</div>
+		</div>
+	</section>
+
+	{{/* ---------------------------------------------------------------- */}}
+
+	<section class="card" aria-labelledby="users-heading">
+		<div class="card__head">
+			<h2 id="users-heading">Accounts</h2>
+		</div>
+
+		{{if .Users}}
+			<div class="table-wrap">
+				<table class="table">
+					<caption class="sr-only">All accounts, their apps, and the actions available on each</caption>
+					<thead>
+						<tr>
+							<th scope="col">User</th>
+							<th scope="col">Created</th>
+							<th scope="col">Last sign-in</th>
+							<th scope="col">Databases</th>
+							<th scope="col"><span class="sr-only">Actions</span></th>
+						</tr>
+					</thead>
+					<tbody>
+						{{range $u := .Users}}
+							<tr class="{{if $u.IsDisabled}}row--muted{{end}}">
+								<td data-label="User">
+									<span class="user-name">{{$u.Username}}</span>
+									<span class="tags">
+										{{if $u.IsAdmin}}<span class="tag tag--admin">admin</span>{{end}}
+										{{if $u.IsDisabled}}<span class="tag tag--off">disabled</span>{{end}}
+									</span>
+								</td>
+								<td data-label="Created" class="num">{{$u.CreatedAt}}</td>
+								<td data-label="Last sign-in" class="num">
+									{{if $u.LastLogin}}{{$u.LastLogin}}{{else}}<span class="muted">never</span>{{end}}
+								</td>
+								<td data-label="Databases">
+									{{if $u.Apps}}
+										<ul class="db-list">
+											{{range $app := $u.Apps}}
+												<li>
+													<code>{{$app}}</code>
+													<a class="link-quiet" href="/admin/instances/{{$u.Username}}/{{$app}}/export"
+														download>export<span class="sr-only"> {{$app}} database for {{$u.Username}}</span></a>
+												</li>
+											{{end}}
+										</ul>
+									{{else}}
+										<span class="muted">none</span>
+									{{end}}
+								</td>
+								<td data-label="Actions">
+									<div class="row-actions">
+										{{if $u.IsDisabled}}
+											<form class="inline" method="post" action="/admin/users/{{$u.ID}}/enable">
+												{{$.Page.CSRFField}}
+												<button class="btn btn--sm" type="submit">Enable</button>
+											</form>
+										{{else}}
+											<form class="inline" method="post" action="/admin/users/{{$u.ID}}/disable"
+												data-confirm="Disable {{$u.Username}}? They will be signed out and unable to sign back in.">
+												{{$.Page.CSRFField}}
+												<button class="btn btn--sm" type="submit">Disable</button>
+											</form>
+										{{end}}
+
+										<form class="inline" method="post" action="/admin/users/{{$u.ID}}/admin"
+											data-confirm="{{if $u.IsAdmin}}Remove administrator rights from {{$u.Username}}?{{else}}Give {{$u.Username}} full administrator rights over every account?{{end}}">
+											{{$.Page.CSRFField}}
+											<button class="btn btn--sm" type="submit">{{if $u.IsAdmin}}Revoke admin{{else}}Make admin{{end}}</button>
+										</form>
+
+										<form class="inline" method="post" action="/admin/users/{{$u.ID}}/reset"
+											data-confirm="Issue new credentials for {{$u.Username}}? Their current password and passphrase stop working.">
+											{{$.Page.CSRFField}}
+											<button class="btn btn--sm" type="submit">Reset credentials</button>
+										</form>
+
+										<form class="inline" method="post" action="/admin/users/{{$u.ID}}/delete"
+											data-confirm="Permanently delete {{$u.Username}} and every database they own? This cannot be undone. Export first if you might need the data.">
+											{{$.Page.CSRFField}}
+											<button class="btn btn--sm btn--danger" type="submit">Delete</button>
+										</form>
+									</div>
+								</td>
+							</tr>
+						{{end}}
+					</tbody>
+				</table>
+			</div>
+			<div class="card__body">
+				<p class="hint">
+					Resetting issues a fresh password and recovery passphrase and shows them
+					to you once &mdash; you have to pass them on. Deleting removes the account's
+					instance directory along with the account, so export anything worth
+					keeping before you do it.
+				</p>
+			</div>
+		{{else}}
+			<div class="card__body">
+				<div class="empty"><p>No accounts yet.</p></div>
+			</div>
+		{{end}}
+	</section>
+
+	{{/* ---------------------------------------------------------------- */}}
+
+	<section class="card" aria-labelledby="running-heading">
+		<div class="card__head">
+			<h2 id="running-heading">Running instances</h2>
+		</div>
+
+		{{if .Running}}
+			<div class="table-wrap">
+				<table class="table">
+					<caption class="sr-only">Child processes currently alive</caption>
+					<thead>
+						<tr>
+							<th scope="col">User</th>
+							<th scope="col">App</th>
+							<th scope="col">PID</th>
+							<th scope="col">Port</th>
+							<th scope="col">Started</th>
+							<th scope="col"><span class="sr-only">Actions</span></th>
+						</tr>
+					</thead>
+					<tbody>
+						{{range $i := .Running}}
+							<tr>
+								<td data-label="User">{{$i.Username}}</td>
+								<td data-label="App"><code>{{$i.App}}</code></td>
+								<td data-label="PID" class="num">{{$i.PID}}</td>
+								<td data-label="Port" class="num">{{$i.Port}}</td>
+								<td data-label="Started" class="num">{{$i.StartedAt}}</td>
+								<td data-label="Actions">
+									<form class="inline" method="post" action="/admin/instances/{{$i.Username}}/{{$i.App}}/stop"
+										data-confirm="Stop {{$i.App}} for {{$i.Username}}? It restarts on their next request.">
+										{{$.Page.CSRFField}}
+										<button class="btn btn--sm" type="submit">Stop</button>
+									</form>
+								</td>
+							</tr>
+						{{end}}
+					</tbody>
+				</table>
+			</div>
+			<div class="card__body">
+				<p class="hint">
+					Stopping is safe: the database is closed cleanly and the process comes
+					back on the next request. Always-on apps are restarted immediately.
+				</p>
+			</div>
+		{{else}}
+			<div class="card__body">
+				<div class="empty">
+					<p>Nothing running.</p>
+					<p class="muted">Instances start on demand and shut down when idle.</p>
+				</div>
+			</div>
+		{{end}}
+	</section>
+
+	{{/* ---------------------------------------------------------------- */}}
+
+	{{if .Apps}}
+		<section class="card" aria-labelledby="apps-heading">
+			<div class="card__head">
+				<h2 id="apps-heading">Configured apps</h2>
+			</div>
+			<div class="card__body">
+				<ul class="chip-list">
+					{{range .Apps}}
+						<li class="chip"><code>{{.Name}}</code> <span class="muted">{{.Title}}</span></li>
+					{{end}}
+				</ul>
+				<p class="hint">From the config file. Changing this list needs a restart.</p>
+			</div>
+		</section>
+	{{end}}
+
+	{{/* ---------------------------------------------------------------- */}}
+
+	<section class="card" aria-labelledby="audit-heading">
+		<div class="card__head">
+			<h2 id="audit-heading">Recent activity</h2>
+		</div>
+
+		{{if .Audit}}
+			<div class="table-wrap">
+				<table class="table table--compact">
+					<caption class="sr-only">Most recent audited actions, newest first</caption>
+					<thead>
+						<tr>
+							<th scope="col">When</th>
+							<th scope="col">Actor</th>
+							<th scope="col">Action</th>
+							<th scope="col">Target</th>
+							<th scope="col">Detail</th>
+						</tr>
+					</thead>
+					<tbody>
+						{{range .Audit}}
+							<tr>
+								<td data-label="When" class="num">{{.At}}</td>
+								<td data-label="Actor">{{.Actor}}</td>
+								<td data-label="Action"><code>{{.Action}}</code></td>
+								<td data-label="Target">{{if .Target}}{{.Target}}{{else}}<span class="muted">&mdash;</span>{{end}}</td>
+								<td data-label="Detail" class="detail">{{if .Detail}}{{.Detail}}{{else}}<span class="muted">&mdash;</span>{{end}}</td>
+							</tr>
+						{{end}}
+					</tbody>
+				</table>
+			</div>
+		{{else}}
+			<div class="card__body">
+				<div class="empty"><p>No activity recorded yet.</p></div>
+			</div>
+		{{end}}
+	</section>
+</div>
+{{end}}

@@ -1,0 +1,1284 @@
+/*
+ * The multiplexer's entire stylesheet.
+ *
+ * One hand-written file, served from our own origin, no framework and no
+ * build step. That is a deliberate constraint rather than a shortcut: this is
+ * the login page for somebody's personal server, and a gateway that pulls a
+ * megabyte of CSS off a CDN in order to draw two text fields has misplaced
+ * its priorities. Everything here is roughly the size of one framework's
+ * grid system.
+ *
+ * The look is meant to read as a control panel you own, not a product you
+ * subscribe to: one accent colour, real whitespace, system fonts, borders
+ * doing the work that drop shadows usually do. It borrows its temperament
+ * from the readerr/workoutt frontends (token-first, calm, high contrast)
+ * without borrowing their palette — this is the layer *around* the apps, and
+ * it should feel like a different room.
+ *
+ * Theming works in two layers. `:root` carries the light values, a
+ * `prefers-color-scheme: dark` block overrides them for anyone whose system
+ * says dark, and `:root[data-theme="light"|"dark"]` overrides both for
+ * someone who made an explicit choice in the header. Written in that order so
+ * the explicit choice always wins in *both* directions — the common bug here
+ * is a dark media query that a data-theme="light" attribute can't undo.
+ * light-dark() would be tidier but ties the manual override to color-scheme,
+ * and this way the cascade is legible.
+ *
+ * Layout order: tokens, reset, typography, forms, buttons, shell, then
+ * components roughly in the order a person meets them.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Tokens
+ * ------------------------------------------------------------------ */
+
+:root {
+	color-scheme: light;
+
+	/* Surfaces. The page is very slightly cooler and darker than the cards,
+	   which is what gives the cards an edge without a shadow. */
+	--bg: #f5f7f8;
+	--surface: #ffffff;
+	--surface-2: #eef1f3;
+	--border: #dbe1e5;
+	--border-strong: #c3ccd3;
+
+	--text: #16202a;
+	--text-muted: #566674;
+
+	/* A single accent: desaturated teal-blue. Used for links, focus rings and
+	   exactly one button per screen. If two things on a page are this colour,
+	   one of them is wrong. */
+	--accent: #0f6280;
+	--accent-bg: #0f6280;
+	--accent-bg-hover: #0b4c65;
+	--accent-fg: #ffffff;
+	--accent-soft: #e7f1f6;
+	--accent-line: #b9d6e2;
+
+	--ok: #14683a;
+	--ok-soft: #e6f4ec;
+	--ok-line: #b8dfc8;
+
+	--danger: #a92a20;
+	--danger-soft: #fdecea;
+	--danger-line: #f0c4c0;
+
+	--warn: #8a5a06;
+	--warn-soft: #fbf2e2;
+	--warn-line: #ecd6a8;
+
+	--font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+	--fs-xs: 0.75rem;
+	--fs-sm: 0.85rem;
+	--fs-base: 1rem;
+	--fs-lg: 1.15rem;
+	--fs-xl: 1.4rem;
+	--fs-2xl: 1.85rem;
+	--lh: 1.55;
+
+	--s-1: 0.25rem;
+	--s-2: 0.5rem;
+	--s-3: 0.75rem;
+	--s-4: 1rem;
+	--s-5: 1.5rem;
+	--s-6: 2.25rem;
+	--s-7: 3.5rem;
+
+	--radius-sm: 6px;
+	--radius: 10px;
+	--radius-lg: 14px;
+	--radius-full: 999px;
+
+	--shadow-1: 0 1px 2px rgb(15 30 45 / 0.06);
+	--shadow-2: 0 6px 24px rgb(15 30 45 / 0.10);
+
+	--width: 46rem;
+	--width-wide: 78rem;
+	--width-form: 24rem;
+	--header-h: 3.5rem;
+}
+
+/* System preference. Scoped away from an explicit light choice so the toggle
+   can override it. */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		color-scheme: dark;
+
+		--bg: #0d1317;
+		--surface: #141c22;
+		--surface-2: #1b242b;
+		--border: #27333b;
+		--border-strong: #3a4954;
+
+		--text: #e2eaf0;
+		--text-muted: #93a3b0;
+
+		/* In dark the accent flips role: it becomes the light thing on a dark
+		   button rather than the dark thing on a light one. A dark-on-dark
+		   primary button is the usual failure. */
+		--accent: #7cc6de;
+		--accent-bg: #7cc6de;
+		--accent-bg-hover: #a3dbec;
+		--accent-fg: #06222c;
+		--accent-soft: #112c37;
+		--accent-line: #1f4c5d;
+
+		--ok: #63d29a;
+		--ok-soft: #102a1e;
+		--ok-line: #1e4c36;
+
+		--danger: #f2837a;
+		--danger-soft: #2c1614;
+		--danger-line: #58281f;
+
+		--warn: #e0b155;
+		--warn-soft: #2b2113;
+		--warn-line: #55401d;
+
+		--shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+		--shadow-2: 0 6px 24px rgb(0 0 0 / 0.5);
+	}
+}
+
+/* Explicit choice from the header toggle. Last, so it beats both blocks
+   above regardless of what the system says. */
+:root[data-theme="dark"] {
+	color-scheme: dark;
+
+	--bg: #0d1317;
+	--surface: #141c22;
+	--surface-2: #1b242b;
+	--border: #27333b;
+	--border-strong: #3a4954;
+
+	--text: #e2eaf0;
+	--text-muted: #93a3b0;
+
+	--accent: #7cc6de;
+	--accent-bg: #7cc6de;
+	--accent-bg-hover: #a3dbec;
+	--accent-fg: #06222c;
+	--accent-soft: #112c37;
+	--accent-line: #1f4c5d;
+
+	--ok: #63d29a;
+	--ok-soft: #102a1e;
+	--ok-line: #1e4c36;
+
+	--danger: #f2837a;
+	--danger-soft: #2c1614;
+	--danger-line: #58281f;
+
+	--warn: #e0b155;
+	--warn-soft: #2b2113;
+	--warn-line: #55401d;
+
+	--shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+	--shadow-2: 0 6px 24px rgb(0 0 0 / 0.5);
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+}
+
+/* ------------------------------------------------------------------ *
+ * Reset and base
+ * ------------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+* {
+	margin: 0;
+}
+
+html {
+	font-family: var(--font);
+	line-height: var(--lh);
+	-webkit-text-size-adjust: 100%;
+}
+
+body {
+	min-height: 100dvh;
+	display: flex;
+	flex-direction: column;
+	background: var(--bg);
+	color: var(--text);
+	font-size: var(--fs-base);
+}
+
+h1, h2, h3 {
+	line-height: 1.25;
+	text-wrap: balance;
+	font-weight: 650;
+}
+
+h1 { font-size: var(--fs-2xl); letter-spacing: -0.015em; }
+h2 { font-size: var(--fs-xl); letter-spacing: -0.01em; }
+h3 { font-size: var(--fs-lg); }
+
+p { text-wrap: pretty; }
+
+a {
+	color: var(--accent);
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.15em;
+}
+
+code {
+	font-family: var(--font-mono);
+	font-size: 0.9em;
+	background: var(--surface-2);
+	border-radius: var(--radius-sm);
+	padding: 0.1em 0.4em;
+	overflow-wrap: anywhere;
+}
+
+/* One focus treatment for everything. Visible on every surface in both
+   themes, which a 1px inset ring is not. */
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-sm);
+}
+
+::selection {
+	background: var(--accent-soft);
+	color: var(--text);
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
+.skip-link {
+	position: absolute;
+	left: var(--s-3);
+	top: -4rem;
+	z-index: 10;
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	padding: var(--s-2) var(--s-4);
+	box-shadow: var(--shadow-2);
+	transition: top 120ms ease-out;
+}
+
+.skip-link:focus {
+	top: var(--s-3);
+}
+
+.muted { color: var(--text-muted); }
+
+.hint {
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+}
+
+/* A boxed aside for the sentence that stops someone doing the wrong thing.
+   Quieter than an alert (which reports an event) but louder than body copy. */
+.note {
+	font-size: var(--fs-sm);
+	background: var(--surface-2);
+	border-left: 3px solid var(--border-strong);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	padding: var(--s-3) var(--s-4);
+	color: var(--text-muted);
+}
+
+.note--ok {
+	background: var(--ok-soft);
+	border-left-color: var(--ok);
+	color: var(--text);
+}
+
+.stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-4);
+}
+
+.stack--lg { gap: var(--s-6); }
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--s-3);
+	align-items: center;
+}
+
+.inline { display: inline; }
+
+/* ------------------------------------------------------------------ *
+ * Header, page shell, footer
+ * ------------------------------------------------------------------ */
+
+.site-header {
+	background: var(--surface);
+	border-bottom: 1px solid var(--border);
+	position: sticky;
+	top: 0;
+	z-index: 5;
+}
+
+.site-header__inner {
+	max-width: var(--width-wide);
+	margin-inline: auto;
+	min-height: var(--header-h);
+	padding: var(--s-2) var(--s-4);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-4);
+	flex-wrap: wrap;
+}
+
+.brand {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--s-2);
+	color: var(--text);
+	text-decoration: none;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+}
+
+/* Three stacked bars: one gateway, many instances. Drawn in CSS rather than
+   shipped as an SVG so there is nothing else to fetch. */
+.brand__mark {
+	width: 0.9rem;
+	height: 0.9rem;
+	flex: none;
+	border-radius: 3px;
+	background:
+		linear-gradient(var(--accent) 0 0) 0 0 / 100% 3px no-repeat,
+		linear-gradient(var(--accent) 0 0) 0 50% / 65% 3px no-repeat,
+		linear-gradient(var(--accent) 0 0) 0 100% / 85% 3px no-repeat;
+}
+
+.nav {
+	display: flex;
+	align-items: center;
+	gap: var(--s-2);
+	flex-wrap: wrap;
+	font-size: var(--fs-sm);
+}
+
+.nav__link {
+	color: var(--text-muted);
+	text-decoration: none;
+	padding: var(--s-2) var(--s-3);
+	border-radius: var(--radius-sm);
+	font-weight: 550;
+}
+
+.nav__link:hover {
+	color: var(--text);
+	background: var(--surface-2);
+}
+
+.nav__user {
+	color: var(--text-muted);
+	padding-inline: var(--s-2);
+	border-left: 1px solid var(--border);
+	max-width: 12rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.nav__form { display: inline; }
+
+.page {
+	flex: 1;
+	width: 100%;
+	max-width: var(--width);
+	margin-inline: auto;
+	padding: var(--s-6) var(--s-4) var(--s-7);
+}
+
+/* Admin opts into the wide container from its own markup; see layout.html. */
+.page:has(> .wide) {
+	max-width: var(--width-wide);
+}
+
+.page-head {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+}
+
+.section-title {
+	display: flex;
+	align-items: center;
+	gap: var(--s-2);
+	font-size: var(--fs-sm);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-weight: 750;
+	color: var(--accent);
+}
+
+.section-title::before {
+	content: "";
+	width: 3px;
+	height: 1em;
+	border-radius: var(--radius-full);
+	background: var(--accent);
+	flex: none;
+}
+
+/* The secondary section on the chooser. Same shape, stepped back so the eye
+   lands on "Installed" first. */
+.section-title--quiet {
+	color: var(--text-muted);
+}
+
+.section-title--quiet::before {
+	background: var(--border-strong);
+}
+
+.site-footer {
+	border-top: 1px solid var(--border);
+	padding: var(--s-4);
+	text-align: center;
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * Alerts
+ * ------------------------------------------------------------------ */
+
+/* The container is always in the DOM so a live region exists before a message
+   does, which means it has to collapse to nothing when there's no message.
+   :empty won't do it — the template's newlines between the two conditional
+   blocks leave text nodes behind — but whitespace-only text doesn't become a
+   flex item, so a flex container with a gap and no real children is genuinely
+   zero-height. The trailing space then hangs off the last alert instead of
+   the box. */
+.alerts {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-3);
+}
+
+.alert:last-child {
+	margin-bottom: var(--s-5);
+}
+
+.alert {
+	border: 1px solid var(--border);
+	border-left-width: 3px;
+	border-radius: var(--radius);
+	padding: var(--s-3) var(--s-4);
+	font-size: var(--fs-sm);
+}
+
+.alert--error {
+	background: var(--danger-soft);
+	border-color: var(--danger-line);
+	border-left-color: var(--danger);
+	color: var(--text);
+}
+
+.alert--ok {
+	background: var(--ok-soft);
+	border-color: var(--ok-line);
+	border-left-color: var(--ok);
+	color: var(--text);
+}
+
+/* ------------------------------------------------------------------ *
+ * Cards
+ * ------------------------------------------------------------------ */
+
+.card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-1);
+	overflow: hidden;
+}
+
+.card__head {
+	padding: var(--s-4) var(--s-5);
+	border-bottom: 1px solid var(--border);
+	background: var(--surface-2);
+}
+
+.card__head h2 {
+	font-size: var(--fs-lg);
+}
+
+.card__body {
+	padding: var(--s-5);
+}
+
+/* Used once, on the passphrase screen: a coloured spine on the one card in
+   the whole app whose contents can't be recovered if it's ignored. */
+.card--flag {
+	border-color: var(--warn-line);
+	box-shadow: var(--shadow-2);
+}
+
+.card--flag::before {
+	content: "";
+	display: block;
+	height: 4px;
+	background: var(--warn);
+}
+
+/* ------------------------------------------------------------------ *
+ * Auth pages
+ * ------------------------------------------------------------------ */
+
+/* Sign-in and its siblings get a narrower column and sit a little high on the
+   page — centred vertically reads as a modal, and these are destinations. */
+.auth {
+	max-width: 26rem;
+	margin-inline: auto;
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-4);
+}
+
+.auth--wide { max-width: 34rem; }
+
+.auth__aside {
+	text-align: center;
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+}
+
+.auth__sep { padding-inline: var(--s-2); }
+
+.error-code {
+	font-family: var(--font-mono);
+	font-size: var(--fs-sm);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * Forms
+ * ------------------------------------------------------------------ */
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-1);
+}
+
+label {
+	font-size: var(--fs-sm);
+	font-weight: 600;
+	color: var(--text);
+}
+
+input,
+textarea,
+select,
+button {
+	font: inherit;
+	color: inherit;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+textarea,
+select {
+	width: 100%;
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	padding: var(--s-3);
+	/* iOS zooms any field under 16px on focus. Not worth the aesthetics. */
+	font-size: max(var(--fs-base), 16px);
+}
+
+textarea {
+	resize: vertical;
+	min-height: 3.5rem;
+	font-family: var(--font-mono);
+	line-height: 1.5;
+}
+
+input::placeholder,
+textarea::placeholder {
+	color: var(--text-muted);
+	opacity: 0.65;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+	border-color: var(--accent);
+	border-radius: var(--radius);
+}
+
+/* Forms in wide cards shouldn't stretch a password field across 78rem. */
+.form--narrow {
+	max-width: var(--width-form);
+}
+
+.check {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--s-3);
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: var(--s-3) var(--s-4);
+}
+
+.check input[type="checkbox"] {
+	width: 1.1rem;
+	height: 1.1rem;
+	margin-top: 0.2rem;
+	flex: none;
+	accent-color: var(--accent-bg);
+}
+
+.check label {
+	font-weight: 500;
+	cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ *
+ * Buttons
+ * ------------------------------------------------------------------ */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--s-2);
+	/* 44px of touch target even at the small size. */
+	min-height: 2.5rem;
+	padding: var(--s-2) var(--s-4);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	font-size: var(--fs-sm);
+	font-weight: 600;
+	text-decoration: none;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background-color 100ms ease, border-color 100ms ease;
+}
+
+.btn:hover {
+	background: var(--surface-2);
+	border-color: var(--text-muted);
+}
+
+.btn:active { transform: translateY(0.5px); }
+
+.btn[disabled] {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.btn[disabled]:hover {
+	background: var(--surface);
+	border-color: var(--border-strong);
+}
+
+.btn--primary {
+	background: var(--accent-bg);
+	border-color: var(--accent-bg);
+	color: var(--accent-fg);
+	font-size: var(--fs-base);
+	min-height: 2.75rem;
+}
+
+.btn--primary:hover {
+	background: var(--accent-bg-hover);
+	border-color: var(--accent-bg-hover);
+}
+
+.btn--ghost {
+	background: transparent;
+	border-color: transparent;
+	color: var(--text-muted);
+	font-weight: 550;
+}
+
+.btn--ghost:hover {
+	background: var(--surface-2);
+	border-color: var(--border);
+	color: var(--text);
+}
+
+/* Destructive actions are outlined, never filled. A red slab is the easiest
+   thing on a page to hit by accident, and these sit inside table rows. */
+.btn--danger {
+	color: var(--danger);
+	border-color: var(--danger-line);
+}
+
+.btn--danger:hover {
+	background: var(--danger-soft);
+	border-color: var(--danger);
+}
+
+.btn--sm {
+	min-height: 2rem;
+	padding: var(--s-1) var(--s-3);
+	font-size: var(--fs-sm);
+}
+
+.btn--block {
+	width: 100%;
+}
+
+.link-quiet {
+	color: var(--text-muted);
+	font-size: var(--fs-sm);
+}
+
+.link-quiet:hover { color: var(--accent); }
+
+/* The remove control is a <button> so it can POST, but it is a secondary
+   action on a card whose primary action is "Open" — styling it as a button
+   would give it visual weight it should not have. Reset the UA button
+   chrome rather than adding a second class everywhere. */
+button.link-quiet {
+	background: none;
+	border: 0;
+	padding: 0;
+	font: inherit;
+	font-size: var(--fs-sm);
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.link-quiet--danger:hover { color: var(--danger, #b3261e); }
+
+.app-card__tools {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem 1rem;
+	margin-top: 0.75rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid var(--border);
+}
+
+/* ------------------------------------------------------------------ *
+ * Chooser: installed apps
+ * ------------------------------------------------------------------ */
+
+.app-grid {
+	list-style: none;
+	padding: 0;
+	display: grid;
+	gap: var(--s-4);
+	/* min() keeps a single card from overflowing a 360px viewport, which a
+	   bare minmax(18rem, 1fr) does. */
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+}
+
+.app-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-3);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-1);
+	padding: var(--s-5);
+	transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.app-card:hover {
+	border-color: var(--accent-line);
+	box-shadow: var(--shadow-2);
+}
+
+.app-card__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--s-3);
+}
+
+.app-card__title {
+	font-size: var(--fs-lg);
+	letter-spacing: -0.01em;
+}
+
+.app-card__desc {
+	color: var(--text-muted);
+	font-size: var(--fs-sm);
+	flex: 1;
+}
+
+.app-card__foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-3);
+	margin-top: var(--s-1);
+}
+
+.app-card__path {
+	background: none;
+	padding: 0;
+	color: var(--text-muted);
+	font-size: var(--fs-xs);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	direction: rtl; /* keep the tail of a long path visible, not the scheme */
+	text-align: right;
+}
+
+.status {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--s-2);
+	font-size: var(--fs-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-weight: 700;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+.status__dot {
+	width: 7px;
+	height: 7px;
+	border-radius: var(--radius-full);
+	background: var(--border-strong);
+	flex: none;
+}
+
+/* Colour alone never carries the running/sleeping distinction — the word next
+   to the dot says it. The dot is a glance affordance, not the message. */
+.status--live { color: var(--ok); }
+.status--live .status__dot { background: var(--ok); }
+
+/* ------------------------------------------------------------------ *
+ * Chooser: available apps
+ * ------------------------------------------------------------------ */
+
+.add-list {
+	list-style: none;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	background: var(--surface);
+}
+
+.add-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-4);
+	padding: var(--s-4) var(--s-5);
+	border-bottom: 1px solid var(--border);
+	flex-wrap: wrap;
+}
+
+.add-item:last-child { border-bottom: 0; }
+
+.add-item__title {
+	font-size: var(--fs-base);
+	font-weight: 600;
+}
+
+.add-item__desc {
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+}
+
+.add-item__text { min-width: 12rem; flex: 1; }
+
+.empty {
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius-lg);
+	padding: var(--s-6) var(--s-5);
+	text-align: center;
+	color: var(--text);
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+}
+
+/* ------------------------------------------------------------------ *
+ * Passphrase
+ * ------------------------------------------------------------------ */
+
+.passphrase {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-3);
+	background: var(--warn-soft);
+	border: 1px solid var(--warn-line);
+	border-radius: var(--radius);
+	padding: var(--s-5);
+}
+
+/* Monospace, wide letter spacing, and generous line height: this gets
+   transcribed by hand onto paper, so telling l from 1 matters more than it
+   looking like the rest of the page. word-spacing separates the words when
+   they're hyphen-joined and wrapping. */
+.passphrase__value {
+	font-family: var(--font-mono);
+	font-size: clamp(1.05rem, 4.2vw, 1.4rem);
+	font-weight: 600;
+	line-height: 1.7;
+	letter-spacing: 0.02em;
+	color: var(--text);
+	overflow-wrap: anywhere;
+	user-select: all;
+}
+
+.passphrase__actions {
+	display: flex;
+	align-items: center;
+	gap: var(--s-3);
+	flex-wrap: wrap;
+}
+
+.facts {
+	margin: 0;
+	padding-left: 1.15rem;
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+}
+
+.facts strong { color: var(--text); }
+
+/* ------------------------------------------------------------------ *
+ * Account / admin bits
+ * ------------------------------------------------------------------ */
+
+.stat {
+	font-size: var(--fs-xl);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--accent);
+}
+
+.setting {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-4);
+	flex-wrap: wrap;
+}
+
+.setting__text { flex: 1; min-width: 14rem; }
+
+.setting__title {
+	font-size: var(--fs-base);
+	font-weight: 650;
+	margin-bottom: var(--s-1);
+}
+
+.tags {
+	display: inline-flex;
+	gap: var(--s-1);
+	flex-wrap: wrap;
+}
+
+.tag {
+	display: inline-block;
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	padding: 0.1rem 0.45rem;
+	border-radius: var(--radius-full);
+	border: 1px solid var(--border-strong);
+	color: var(--text-muted);
+	vertical-align: 0.1em;
+}
+
+.tag--admin {
+	color: var(--accent);
+	border-color: var(--accent-line);
+	background: var(--accent-soft);
+}
+
+.tag--off {
+	color: var(--danger);
+	border-color: var(--danger-line);
+	background: var(--danger-soft);
+}
+
+.chip-list {
+	list-style: none;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--s-2);
+	margin-bottom: var(--s-3);
+}
+
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--s-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-full);
+	padding: var(--s-1) var(--s-3);
+	font-size: var(--fs-sm);
+	background: var(--surface-2);
+}
+
+.chip code { background: none; padding: 0; }
+
+/* ------------------------------------------------------------------ *
+ * Tables
+ * ------------------------------------------------------------------ */
+
+/* The wrapper scrolls, never the page. Wide admin tables on a phone are the
+   single most reliable way to end up with a horizontally scrolling document
+   and a nav bar you can't reach. */
+.table-wrap {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	border-top: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+}
+
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--fs-sm);
+}
+
+.table th {
+	text-align: left;
+	font-size: var(--fs-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-weight: 700;
+	color: var(--text-muted);
+	background: var(--surface-2);
+	padding: var(--s-3) var(--s-4);
+	white-space: nowrap;
+}
+
+.table td {
+	padding: var(--s-3) var(--s-4);
+	border-top: 1px solid var(--border);
+	vertical-align: top;
+}
+
+.table tbody tr:hover td {
+	background: var(--surface-2);
+}
+
+.table--compact td,
+.table--compact th {
+	padding: var(--s-2) var(--s-4);
+}
+
+/* Timestamps, ports and pids line up when they're tabular and don't wrap. */
+.table .num {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	color: var(--text-muted);
+}
+
+.table .detail {
+	max-width: 22rem;
+	overflow-wrap: anywhere;
+	color: var(--text-muted);
+}
+
+/* A disabled account should read as switched off at a glance without
+   disappearing — it's still the row you're about to act on. */
+.row--muted td { opacity: 0.65; }
+
+.user-name {
+	font-weight: 650;
+	overflow-wrap: anywhere;
+}
+
+.db-list {
+	list-style: none;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-1);
+}
+
+.db-list li {
+	display: flex;
+	align-items: center;
+	gap: var(--s-2);
+	white-space: nowrap;
+}
+
+.row-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--s-2);
+	justify-content: flex-end;
+}
+
+/* ------------------------------------------------------------------ *
+ * Narrow screens
+ * ------------------------------------------------------------------ */
+
+/* Below this width a six-column admin table is a horizontal scroll nobody
+   enjoys, so each row becomes a small stacked card and the cells label
+   themselves from data-label. The .table-wrap overflow stays in place as the
+   safety net for anything that still doesn't fit. */
+@media (max-width: 44rem) {
+	.table thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+
+	.table,
+	.table tbody,
+	.table tr,
+	.table td {
+		display: block;
+		width: 100%;
+	}
+
+	.table tbody tr {
+		border-top: 1px solid var(--border);
+		padding: var(--s-3) var(--s-4);
+	}
+
+	.table td {
+		border-top: 0;
+		padding: var(--s-1) 0;
+	}
+
+	.table td[data-label]::before {
+		content: attr(data-label);
+		display: block;
+		font-size: var(--fs-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		font-weight: 700;
+		color: var(--text-muted);
+	}
+
+	.table tbody tr:hover td { background: none; }
+
+	.table .detail { max-width: none; }
+
+	.row-actions {
+		justify-content: flex-start;
+		padding-top: var(--s-2);
+	}
+
+	/* The nav wraps to two or three rows on a phone, and a sticky element that
+	   tall eats a fifth of the viewport on every page. Let it scroll away
+	   here; it's a short page back to the top. */
+	.site-header {
+		position: static;
+	}
+
+	.nav {
+		gap: var(--s-1);
+	}
+
+	.nav__link {
+		padding: var(--s-2);
+	}
+}
+
+@media (max-width: 30rem) {
+	:root {
+		--fs-2xl: 1.6rem;
+		--fs-xl: 1.25rem;
+	}
+
+	.page { padding: var(--s-5) var(--s-3) var(--s-6); }
+	.card__body,
+	.app-card,
+	.add-item { padding: var(--s-4); }
+	.card__head { padding: var(--s-3) var(--s-4); }
+	.site-header__inner { padding: var(--s-2) var(--s-3); }
+
+	/* Below ~30rem the username label pushes Sign out onto its own line
+	   awkwardly; the nav already says who you are on every other page. */
+	.nav__user { display: none; }
+
+	.app-card__path { display: none; }
+}
+
+/* ------------------------------------------------------------------ *
+ * Preferences
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+/* Anyone forcing high contrast has already told the browser what they want;
+   don't fight it with tinted surfaces. */
+@media (prefers-contrast: more) {
+	:root {
+		--border: var(--border-strong);
+	}
+
+	.btn { border-color: currentColor; }
+}
+
+/* Printing matters for exactly one page: the passphrase. Strip the chrome and
+   let the words go on paper. */
+@media print {
+	.site-header,
+	.site-footer,
+	.skip-link,
+	.passphrase__actions,
+	.check,
+	.btn {
+		display: none !important;
+	}
+
+	body { background: #fff; color: #000; }
+
+	.card,
+	.passphrase {
+		border: 1px solid #000;
+		box-shadow: none;
+	}
+}

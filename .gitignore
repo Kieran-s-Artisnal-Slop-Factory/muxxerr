@@ -1,0 +1,14 @@
+# Build output: compiled app backends and built frontends. Regenerate with
+# `go run ./cmd/muxbuild`.
+/runtime/
+
+# Everything a person's account and app data lives in, plus the pepper that
+# protects the credentials. Never commit either — and back them up separately
+# from each other, since the pepper is what makes the database useless on its
+# own.
+/data/
+
+*.exe
+
+# Scratch from test/api.sh
+/test/.work/

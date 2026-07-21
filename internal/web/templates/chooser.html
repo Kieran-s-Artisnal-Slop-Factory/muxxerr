@@ -1,0 +1,104 @@
+{{/*
+	The dashboard, and by a wide margin the most-visited page here. Someone
+	signs in to get to workoutt, not to admire the gateway, so the whole layout
+	is arranged around making "open the app I came for" the single obvious
+	move: full-width cards, one primary button each, nothing above them but the
+	greeting.
+
+	Apps you've added and apps you could add are separate sections rather than
+	one list with different buttons. Mixing them puts a destructive-adjacent
+	action ("Add" creates a database) next to the one you press every day, and
+	the not-yet-added list is usually short and rarely interesting.
+
+	"Sleeping" is shown, not hidden. A child process that has idled out is
+	normal and costs about a tenth of a second to wake, but seeing the state
+	explained means the occasional slow first click reads as expected behaviour
+	instead of a stall. There is no "start" button for the same reason: opening
+	the app is the start button.
+
+	$.Page is used inside the ranges — the dot is rebound to each element.
+*/}}
+{{define "title"}}Your apps{{end}}
+
+{{define "content"}}
+<div class="stack stack--lg">
+	<div class="page-head">
+		<h1>Your apps</h1>
+		<p class="muted">
+			Signed in as <strong>{{.Username}}</strong>. Everything below runs as its own
+			process with its own database, kept to your account.
+		</p>
+	</div>
+
+	<section class="stack" aria-labelledby="installed-heading">
+		<h2 class="section-title" id="installed-heading">Installed</h2>
+
+		{{if .Installed}}
+			<ul class="app-grid">
+				{{range .Installed}}
+					<li class="app-card">
+						<div class="app-card__head">
+							<h3 class="app-card__title">{{.Title}}</h3>
+							{{if .Running}}
+								<span class="status status--live"><span class="status__dot" aria-hidden="true"></span>Running</span>
+							{{else}}
+								<span class="status"><span class="status__dot" aria-hidden="true"></span>Sleeping</span>
+							{{end}}
+						</div>
+						<p class="app-card__desc">{{.Description}}</p>
+						<div class="app-card__foot">
+							<a class="btn btn--primary" href="{{.URL}}">Open<span class="sr-only"> {{.Title}}</span></a>
+							<code class="app-card__path">{{.URL}}</code>
+						</div>
+						{{/*
+							Export and remove are per-app rather than buried in Account
+							because they are per-app decisions. Removing is deliberately
+							worded as "hide": the server keeps the database, and adding the
+							app again brings it back. Destroying data is an administrator's
+							job, on a page with more friction than this one.
+						*/}}
+						<div class="app-card__tools">
+							<a class="link-quiet" href="/apps/{{.Name}}/export">Download data</a>
+							<form class="inline" method="post" action="/apps/{{.Name}}/remove"
+								data-confirm="Hide {{.Title}} from your dashboard? Your data stays on the server and comes back if you add it again.">
+								{{$.Page.CSRFField}}
+								<button class="link-quiet link-quiet--danger" type="submit">Remove<span class="sr-only"> {{.Title}}</span></button>
+							</form>
+						</div>
+					</li>
+				{{end}}
+			</ul>
+			<p class="hint">
+				Sleeping apps start the moment you open them &mdash; usually well under a
+				second. Nothing is lost while they're asleep; the data is on disk.
+			</p>
+		{{else}}
+			<div class="empty">
+				<p><strong>Nothing installed yet.</strong></p>
+				<p class="muted">Add one from the list below and it'll be ready immediately.</p>
+			</div>
+		{{end}}
+	</section>
+
+	{{if .Available}}
+		<section class="stack" aria-labelledby="available-heading">
+			<h2 class="section-title section-title--quiet" id="available-heading">Available to add</h2>
+			<ul class="add-list">
+				{{range .Available}}
+					<li class="add-item">
+						<div class="add-item__text">
+							<h3 class="add-item__title">{{.Title}}</h3>
+							<p class="add-item__desc">{{.Description}}</p>
+						</div>
+						<form method="post" action="/apps/{{.Name}}/install">
+							{{$.Page.CSRFField}}
+							<button class="btn btn--sm" type="submit">Add<span class="sr-only"> {{.Title}}</span></button>
+						</form>
+					</li>
+				{{end}}
+			</ul>
+			<p class="hint">Adding creates an empty database for you. It doesn't touch anyone else's.</p>
+		</section>
+	{{end}}
+</div>
+{{end}}

@@ -1,0 +1,35 @@
+{{/*
+	The error page, rendered through the same layout as everything else so a
+	404 still has the nav bar and still knows who you are — half of all errors
+	here are "wrong URL, but you're logged in", and the fix is one click away
+	in the header.
+
+	The status code is shown quietly beside the message rather than as a giant
+	numeral. The number is only useful when reporting the problem; the sentence
+	is what the person actually needs. The handler is expected to keep that
+	sentence generic for anything auth-related — "not found" for a resource
+	that exists but isn't yours, never "that user has no such app" — since this
+	page is reachable by anyone who can guess a path.
+*/}}
+{{define "title"}}{{.Code}} &mdash; something went wrong{{end}}
+
+{{define "content"}}
+<div class="auth">
+	<div class="card">
+		<div class="card__body stack">
+			<div class="page-head">
+				<p class="error-code">Error {{.Code}}</p>
+				<h1>{{.Message}}</h1>
+			</div>
+
+			<div class="actions">
+				{{if .Page.User}}
+					<a class="btn btn--primary" href="/">Back to your apps</a>
+				{{else}}
+					<a class="btn btn--primary" href="/login">Sign in</a>
+				{{end}}
+			</div>
+		</div>
+	</div>
+</div>
+{{end}}

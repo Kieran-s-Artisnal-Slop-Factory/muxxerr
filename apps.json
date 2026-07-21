@@ -1,0 +1,71 @@
+{
+  "site": {
+    "addr": ":8080",
+    "data_dir": "data",
+    "runtime_dir": "runtime",
+    "signups_enabled": true,
+    "secure_cookies": false,
+    "session_ttl": "720h",
+    "allow_admin_impersonation": false
+  },
+  "apps": [
+    {
+      "name": "readerr",
+      "title": "Readerr",
+      "description": "Reading list, weekly triage and notes. Local-first; the server is a sync target.",
+      "kind": "sync",
+      "source": "../readerr",
+      "backend_dir": "backend",
+      "frontend_dir": "frontend",
+      "base_placeholder": "/__MUX__",
+      "health_path": "/healthz",
+      "backup_path": "/backup",
+      "db_file": "readerr.db",
+      "api_prefixes": [
+        "/sync/",
+        "/healthz",
+        "/backup",
+        "/title",
+        "/dbsize"
+      ],
+      "env": {},
+      "idle_timeout": "30m",
+      "always_on": false,
+      "guarded_routes": [
+        {
+          "path": "/title",
+          "param": "url",
+          "policy": "block-private"
+        }
+      ]
+    },
+    {
+      "name": "workoutt",
+      "title": "Workoutt",
+      "description": "Workout planning and logging with push reminders. Local-first; the server is a sync target.",
+      "kind": "sync",
+      "source": "../workoutt",
+      "backend_dir": "backend",
+      "frontend_dir": "frontend",
+      "base_placeholder": "/__MUX__",
+      "health_path": "/healthz",
+      "backup_path": "/backup",
+      "db_file": "workoutt.db",
+      "api_prefixes": [
+        "/sync/",
+        "/healthz",
+        "/backup",
+        "/push/"
+      ],
+      "env": {
+        "NOTIFY_INTERVAL_SECONDS": "60",
+        "VAPID_SUBJECT": "mailto:admin@workoutt.local",
+        "VAPID_PUBLIC_KEY": "",
+        "VAPID_PRIVATE_KEY": ""
+      },
+      "idle_timeout": "0s",
+      "always_on": true,
+      "guarded_routes": []
+    }
+  ]
+}

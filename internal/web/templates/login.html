@@ -1,0 +1,57 @@
+{{/*
+	Sign-in. The only page an unauthenticated visitor is expected to see, so it
+	is deliberately the plainest thing here: two fields, one button, no
+	decoration competing for attention.
+
+	`next` rides along as a hidden input rather than a query parameter because
+	the form is a POST and the value survives a failed attempt without being
+	re-encoded into the URL each time. The handler is expected to reject any
+	value that isn't a local path — this template can't and shouldn't police it.
+
+	The username field is repopulated on error but the password never is: a
+	failed attempt should cost one keystroke of memory, not leave a credential
+	sitting in the DOM (and in bfcache) of a page that just failed to
+	authenticate.
+*/}}
+{{define "title"}}Sign in{{end}}
+
+{{define "content"}}
+<div class="auth">
+	<div class="card">
+		<div class="card__body stack">
+			<div class="page-head">
+				<h1>Sign in</h1>
+				<p class="muted">Your apps and your data are kept separate from everyone else's.</p>
+			</div>
+
+			<form method="post" action="/login" class="stack">
+				{{.Page.CSRFField}}
+				<input type="hidden" name="next" value="{{.Next}}">
+
+				<div class="field">
+					<label for="username">Username</label>
+					<input id="username" name="username" type="text" value="{{.Username}}"
+						autocomplete="username" autocapitalize="none" autocorrect="off"
+						spellcheck="false" required autofocus>
+				</div>
+
+				<div class="field">
+					<label for="password">Password</label>
+					<input id="password" name="password" type="password"
+						autocomplete="current-password" required>
+				</div>
+
+				<button class="btn btn--primary btn--block" type="submit">Sign in</button>
+			</form>
+		</div>
+	</div>
+
+	<p class="auth__aside">
+		<a href="/reset">Forgot your password?</a>
+		{{if .SignupsEnabled}}
+			<span class="auth__sep" aria-hidden="true">&middot;</span>
+			<a href="/signup">Create an account</a>
+		{{end}}
+	</p>
+</div>
+{{end}}

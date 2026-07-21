@@ -1,0 +1,136 @@
+{{/*
+	Account settings: the three things a person can do to their own credentials.
+
+	Each sits in its own card with its own form and its own button. It's
+	tempting to fold them into one "save" page, but these are unrelated
+	operations with different blast radii — one changes a secret you type
+	daily, one invalidates the paper in your desk drawer, one kicks devices off
+	— and a single submit button over all three makes it far too easy to do a
+	thing you didn't mean to.
+
+	Both credential changes ask for the current password. It's the standard
+	defence against someone typing into a session left open on a shared
+	machine, and it costs a person who genuinely owns the account nothing.
+
+	Rotating the passphrase leads to the same one-time display screen as
+	signup, so the warning here is short: the detail belongs on the page that
+	actually shows the words.
+*/}}
+{{define "title"}}Account{{end}}
+
+{{define "content"}}
+<div class="stack stack--lg">
+	<div class="page-head">
+		<h1>Account</h1>
+		<p class="muted">
+			Signed in as <strong>{{.Page.User.Username}}</strong>.
+			{{if .Page.User.IsAdmin}}<span class="tag tag--admin">Administrator</span>{{end}}
+		</p>
+	</div>
+
+	<section class="card" aria-labelledby="password-heading">
+		<div class="card__head">
+			<h2 id="password-heading">Password</h2>
+		</div>
+		<div class="card__body">
+			<form method="post" action="/account/password" class="stack form--narrow">
+				{{.Page.CSRFField}}
+
+				<div class="field">
+					<label for="current">Current password</label>
+					<input id="current" name="current_password" type="password"
+						autocomplete="current-password" required>
+				</div>
+
+				<div class="field">
+					<label for="password">New password</label>
+					<input id="password" name="password" type="password"
+						autocomplete="new-password" minlength="10"
+						aria-describedby="password-hint" required>
+					<p class="hint" id="password-hint">At least 10 characters.</p>
+				</div>
+
+				<div class="field">
+					<label for="password2">Confirm new password</label>
+					<input id="password2" name="password_confirm" type="password"
+						autocomplete="new-password" minlength="10" required>
+				</div>
+
+				<div class="actions">
+					<button class="btn btn--primary" type="submit">Change password</button>
+				</div>
+			</form>
+		</div>
+	</section>
+
+	<section class="card" aria-labelledby="passphrase-heading">
+		<div class="card__head">
+			<h2 id="passphrase-heading">Recovery passphrase</h2>
+		</div>
+		<div class="card__body stack">
+			{{if .PassphraseRotated}}
+				<p class="note note--ok">
+					This passphrase has been rotated since the account was created. Any
+					older passphrase you still have written down no longer works.
+				</p>
+			{{else}}
+				<p class="note">
+					Still the passphrase issued when the account was created. Rotate it if
+					you're not sure where that copy ended up.
+				</p>
+			{{end}}
+
+			<p class="muted">
+				Rotating replaces it with six new words, shown once on the next screen.
+				The old passphrase stops working immediately.
+			</p>
+
+			<form method="post" action="/account/passphrase" class="stack form--narrow"
+				data-confirm="Generate a new recovery passphrase? The current one stops working right away.">
+				{{.Page.CSRFField}}
+
+				<div class="field">
+					<label for="pp-current">Current password</label>
+					<input id="pp-current" name="current_password" type="password"
+						autocomplete="current-password" required>
+				</div>
+
+				<div class="actions">
+					<button class="btn" type="submit">Generate a new passphrase</button>
+				</div>
+			</form>
+		</div>
+	</section>
+
+	<section class="card" aria-labelledby="sessions-heading">
+		<div class="card__head">
+			<h2 id="sessions-heading">Signed-in devices</h2>
+		</div>
+		<div class="card__body stack">
+			<p>
+				<span class="stat">{{.Sessions}}</span>
+				active {{if eq .Sessions 1}}session{{else}}sessions{{end}}, including this one.
+			</p>
+			<p class="muted">
+				Ending the others signs out every browser and phone except the one you're
+				using now. Your apps keep running; only the sessions go.
+			</p>
+
+			<form method="post" action="/account/sessions/revoke"
+				data-confirm="Sign out all other devices?">
+				{{.Page.CSRFField}}
+				{{/*
+					Written out twice rather than as a conditional `disabled` attribute:
+					html/template refuses an action in attribute-name position, and the
+					duplication is three words.
+				*/}}
+				{{if le .Sessions 1}}
+					<button class="btn btn--danger" type="submit" disabled>Sign out other devices</button>
+				{{else}}
+					<button class="btn btn--danger" type="submit">Sign out other devices</button>
+				{{end}}
+			</form>
+		</div>
+	</section>
+</div>
+{{end}}

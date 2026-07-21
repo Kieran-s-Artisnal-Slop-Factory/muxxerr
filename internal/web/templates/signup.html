@@ -1,0 +1,71 @@
+{{/*
+	Account creation. Only reachable when signups are enabled — the handler
+	guards that; this page just assumes it got there legitimately.
+
+	Two things are said up front rather than after the fact. First, that the
+	username becomes part of every URL for this person's apps, because it does
+	(/<username>/<app>/) and it is not something we want to rename later.
+	Second, that a recovery passphrase is generated on the next screen, so the
+	passphrase page doesn't arrive as a surprise wall of text to be clicked
+	past.
+
+	The password is asked for twice. Confirmation fields are usually friction
+	for nothing, but here a typo is unusually expensive: there is no email on
+	file, so the only route back in is the passphrase they haven't seen yet.
+*/}}
+{{define "title"}}Create an account{{end}}
+
+{{define "content"}}
+<div class="auth">
+	<div class="card">
+		<div class="card__body stack">
+			<div class="page-head">
+				<h1>Create an account</h1>
+				<p class="muted">You get your own copy of each app, with its own database.</p>
+			</div>
+
+			<form method="post" action="/signup" class="stack">
+				{{.Page.CSRFField}}
+
+				<div class="field">
+					<label for="username">Username</label>
+					<input id="username" name="username" type="text" value="{{.Username}}"
+						autocomplete="username" autocapitalize="none" autocorrect="off"
+						spellcheck="false" pattern="[A-Za-z0-9_-]+" maxlength="32"
+						aria-describedby="username-hint" required autofocus>
+					<p class="hint" id="username-hint">
+						Letters, numbers, dashes and underscores. This appears in the address of
+						every app you open, so it can't be changed later.
+					</p>
+				</div>
+
+				<div class="field">
+					<label for="password">Password</label>
+					<input id="password" name="password" type="password"
+						autocomplete="new-password" minlength="10"
+						aria-describedby="password-hint" required>
+					<p class="hint" id="password-hint">At least 10 characters. Length beats punctuation.</p>
+				</div>
+
+				<div class="field">
+					<label for="password2">Confirm password</label>
+					<input id="password2" name="password_confirm" type="password"
+						autocomplete="new-password" minlength="10" required>
+				</div>
+
+				<p class="note">
+					After this you'll be shown a recovery passphrase, once. It's the only way
+					back into your account if you forget your password, so have somewhere to
+					put it before you continue.
+				</p>
+
+				<button class="btn btn--primary btn--block" type="submit">Create account</button>
+			</form>
+		</div>
+	</div>
+
+	<p class="auth__aside">
+		Already have an account? <a href="/login">Sign in</a>
+	</p>
+</div>
+{{end}}

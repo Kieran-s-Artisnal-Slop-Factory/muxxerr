@@ -1,0 +1,158 @@
+{{/*
+	The one page shell every multiplexer view is rendered through.
+
+	Each page file is parsed as its own template set alongside this file and
+	defines "title" and "content"; the handler executes "layout". That means a
+	page can never accidentally inherit another page's block — the sets are
+	disjoint — at the cost of re-parsing this file once per page, which is
+	nothing next to a process spawn.
+
+	Two deliberate constraints shape the markup:
+
+	  1. No JavaScript is required for anything. The gateway is the thing that
+	     stands between a person and their data; if a script fails to load,
+	     locks up, or is blocked, they must still be able to sign in, change a
+	     password, and reach their apps. The two scripts at the bottom add a
+	     theme toggle and confirm-before-destroy prompts, and the page is
+	     entirely usable without either.
+
+	  2. No external requests. One stylesheet served from our own origin, no
+	     fonts, no analytics, no CDN. A self-hosted gateway that phones out on
+	     every page load would be a small betrayal of the premise.
+
+	Comments here are Go template comments rather than HTML comments so none
+	of this reasoning ships to the browser on every request.
+*/}}
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+{{/* This is somebody's private control panel; it has no business in an index. */}}
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="same-origin">
+<title>{{template "title" .}} &middot; {{.Page.SiteName}}</title>
+<link rel="stylesheet" href="{{.Page.StaticURL}}/mux.css">
+{{/*
+	Applied before first paint so a person who chose "dark" never gets a white
+	flash on navigation. Failing silently is correct: a blocked or broken
+	script just leaves the OS preference in charge, which is the sane default.
+*/}}
+<script>
+	try {
+		var t = localStorage.getItem("mux-theme");
+		if (t === "light" || t === "dark") {
+			document.documentElement.setAttribute("data-theme", t);
+		}
+	} catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+	<div class="site-header__inner">
+		<a class="brand" href="/">
+			<span class="brand__mark" aria-hidden="true"></span>
+			<span class="brand__name">{{.Page.SiteName}}</span>
+		</a>
+
+		<nav class="nav" aria-label="Main">
+			{{if .Page.User}}
+				<a class="nav__link" href="/">Apps</a>
+				<a class="nav__link" href="/account">Account</a>
+				{{if .Page.User.IsAdmin}}<a class="nav__link" href="/admin">Admin</a>{{end}}
+				<span class="nav__user" title="Signed in as {{.Page.User.Username}}">{{.Page.User.Username}}</span>
+				<form class="nav__form" method="post" action="/logout">
+					{{.Page.CSRFField}}
+					<button class="btn btn--ghost btn--sm" type="submit">Sign out</button>
+				</form>
+			{{else}}
+				<a class="nav__link" href="/login">Sign in</a>
+			{{end}}
+			{{/* Filled in by script; stays empty and invisible without JS. */}}
+			<span class="nav__slot" id="theme-slot"></span>
+		</nav>
+	</div>
+</header>
+
+{{/*
+	The container is one fixed width for every page. Admin needs more room than
+	a login box does, but rather than plumb a width flag through the view model
+	the stylesheet widens this element when the page's content opts in with a
+	`.wide` wrapper (via :has). Browsers without :has just get the reading
+	width, which is a smaller loss than a layout knob in Go.
+*/}}
+<main class="page" id="main">
+	{{/*
+		Always in the DOM, even when empty, so screen readers announce a flash
+		that appears after a form post rather than missing the insertion.
+	*/}}
+	<div class="alerts" aria-live="polite" aria-atomic="true">
+		{{with .Page.Error}}<p class="alert alert--error" role="alert">{{.}}</p>{{end}}
+		{{with .Page.Flash}}<p class="alert alert--ok">{{.}}</p>{{end}}
+	</div>
+
+	{{template "content" .}}
+</main>
+
+<footer class="site-footer">
+	<p>{{.Page.SiteName}} &mdash; one process and one database per person, per app.</p>
+</footer>
+
+<script>
+(function () {
+	// Theme cycle: system -> light -> dark -> system. Built in JS on purpose —
+	// storing a preference server-side would mean a cookie and a round trip for
+	// something that is purely a rendering choice, and rendering the button in
+	// the HTML would leave a dead control for anyone without scripting.
+	var slot = document.getElementById("theme-slot");
+	if (slot) {
+		var root = document.documentElement;
+		var order = ["system", "light", "dark"];
+		var labels = { system: "System", light: "Light", dark: "Dark" };
+		var btn = document.createElement("button");
+		btn.type = "button";
+		btn.className = "btn btn--ghost btn--sm";
+
+		function current() {
+			var t = root.getAttribute("data-theme");
+			return t === "light" || t === "dark" ? t : "system";
+		}
+		function paint() {
+			var c = current();
+			btn.textContent = labels[c];
+			btn.setAttribute("aria-label", "Colour theme: " + labels[c] + ". Click to change.");
+		}
+		btn.addEventListener("click", function () {
+			var next = order[(order.indexOf(current()) + 1) % order.length];
+			if (next === "system") {
+				root.removeAttribute("data-theme");
+			} else {
+				root.setAttribute("data-theme", next);
+			}
+			try {
+				if (next === "system") { localStorage.removeItem("mux-theme"); }
+				else { localStorage.setItem("mux-theme", next); }
+			} catch (e) {}
+			paint();
+		});
+		paint();
+		slot.appendChild(btn);
+	}
+
+	// Confirmation for the handful of forms that destroy something. This is a
+	// courtesy, not a control: the server must still treat every one of these
+	// posts as authoritative, because anyone can skip the dialog trivially.
+	document.addEventListener("submit", function (ev) {
+		var msg = ev.target.getAttribute && ev.target.getAttribute("data-confirm");
+		if (msg && !window.confirm(msg)) {
+			ev.preventDefault();
+		}
+	});
+})();
+</script>
+</body>
+</html>
+{{end}}

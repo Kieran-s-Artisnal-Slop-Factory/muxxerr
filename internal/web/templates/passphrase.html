@@ -1,0 +1,96 @@
+{{/*
+	The recovery passphrase, shown exactly once.
+
+	This is the highest-stakes screen in the whole gateway and the easiest one
+	to click past, so the design fights that specifically: the passphrase is
+	the largest thing on the page, the consequences are stated in plain words
+	above it rather than in fine print below, and the only way forward is a
+	checkbox that has to be ticked deliberately. No "remind me later", because
+	there is no later — the hash is all the server keeps.
+
+	The words are wrapped one per chip. Six-word passphrases get transcribed by
+	hand more often than anyone admits, and hyphen-separated running text is
+	where the transcription errors happen.
+
+	The copy button is created by script rather than sitting in the HTML: a
+	clipboard button that silently does nothing is worse than no button, since
+	someone might trust it and move on without saving anything.
+*/}}
+{{define "title"}}Save your recovery passphrase{{end}}
+
+{{define "content"}}
+<div class="auth auth--wide">
+	<div class="card card--flag">
+		<div class="card__body stack">
+			<div class="page-head">
+				<h1>Save this passphrase now</h1>
+				<p class="muted">
+					Your account is created. This is the last time these words will ever
+					be displayed.
+				</p>
+			</div>
+
+			<div class="passphrase" id="passphrase-block">
+				<p class="passphrase__value" id="passphrase-value">{{.Passphrase}}</p>
+				<div class="passphrase__actions">
+					<span class="passphrase__slot" id="copy-slot"></span>
+					<span class="hint">Write it down, or put it in a password manager.</span>
+				</div>
+			</div>
+
+			<ul class="facts">
+				<li><strong>It cannot be shown again.</strong> Only a hash of it is stored, so nobody &mdash; including the administrator &mdash; can read it back to you.</li>
+				<li><strong>It is the only self-serve way back in</strong> if you forget your password.</li>
+				<li><strong>If you lose both,</strong> an administrator has to reset the account by hand.</li>
+				<li><strong>Treat it like the password itself.</strong> Anyone holding it can set a new password on your account.</li>
+			</ul>
+
+			<form method="post" action="/passphrase" class="stack">
+				{{.Page.CSRFField}}
+				<input type="hidden" name="next" value="{{.Next}}">
+
+				<div class="check">
+					<input id="saved" name="saved" type="checkbox" value="1" required>
+					<label for="saved">I have saved my recovery passphrase somewhere safe.</label>
+				</div>
+
+				<button class="btn btn--primary btn--block" type="submit">Continue</button>
+			</form>
+		</div>
+	</div>
+</div>
+
+<script>
+(function () {
+	var slot = document.getElementById("copy-slot");
+	var value = document.getElementById("passphrase-value");
+	if (!slot || !value || !navigator.clipboard) { return; }
+
+	var btn = document.createElement("button");
+	btn.type = "button";
+	btn.className = "btn btn--sm";
+	btn.textContent = "Copy";
+
+	var reset;
+	btn.addEventListener("click", function () {
+		navigator.clipboard.writeText(value.textContent.trim()).then(function () {
+			btn.textContent = "Copied";
+			// Announce it too — a button whose label changes is invisible to
+			// anyone who isn't looking at it.
+			slot.setAttribute("aria-live", "polite");
+			clearTimeout(reset);
+			reset = setTimeout(function () { btn.textContent = "Copy"; }, 2500);
+		}).catch(function () {
+			btn.textContent = "Press Ctrl+C";
+			var range = document.createRange();
+			range.selectNodeContents(value);
+			var sel = window.getSelection();
+			sel.removeAllRanges();
+			sel.addRange(range);
+		});
+	});
+
+	slot.appendChild(btn);
+})();
+</script>
+{{end}}
