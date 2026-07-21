@@ -46,15 +46,22 @@
 	--text: #16202a;
 	--text-muted: #566674;
 
-	/* A single accent: desaturated teal-blue. Used for links, focus rings and
+	/* A single accent: a deep turquoise-cyan. Used for links, focus rings and
 	   exactly one button per screen. If two things on a page are this colour,
-	   one of them is wrong. */
-	--accent: #0f6280;
-	--accent-bg: #0f6280;
-	--accent-bg-hover: #0b4c65;
+	   one of them is wrong.
+
+	   Cyan is a trap on white — the pretty end of the hue is around 2:1 as
+	   body text — so this sits at L*≈25 and clears 4.5:1 against both --bg and
+	   --surface with room to spare. It also stays around hue 187, a good 40°
+	   off --ok's green, so a link never reads as a success message. */
+	--accent: #0a6b78;
+	--accent-bg: #0a6b78;
+	--accent-bg-hover: #085763;
 	--accent-fg: #ffffff;
-	--accent-soft: #e7f1f6;
-	--accent-line: #b9d6e2;
+	--accent-soft: #e3f2f5;
+	/* Borders, not text: dark enough to clear 3:1 against every surface it is
+	   drawn on, which the old pale tint did not. */
+	--accent-line: #3e95a3;
 
 	--ok: #14683a;
 	--ok-soft: #e6f4ec;
@@ -118,15 +125,20 @@
 
 		/* In dark the accent flips role: it becomes the light thing on a dark
 		   button rather than the dark thing on a light one. A dark-on-dark
-		   primary button is the usual failure. */
-		--accent: #7cc6de;
-		--accent-bg: #7cc6de;
-		--accent-bg-hover: #a3dbec;
-		--accent-fg: #06222c;
-		--accent-soft: #112c37;
-		--accent-line: #1f4c5d;
+		   primary button is the usual failure. Same turquoise hue as light,
+		   held under 60% saturation so it reads as a lit surface rather than a
+		   neon sign. */
+		--accent: #72c9d9;
+		--accent-bg: #72c9d9;
+		--accent-bg-hover: #9adbe7;
+		--accent-fg: #04252c;
+		--accent-soft: #0f2c34;
+		--accent-line: #3a7b88;
 
-		--ok: #63d29a;
+		/* Nudged a few degrees greener than it was: the dark accent and the
+		   dark "ok" are the closest pair in the palette, and mint next to
+		   turquoise is the one confusion worth spending a hue on. */
+		--ok: #62d18f;
 		--ok-soft: #102a1e;
 		--ok-line: #1e4c36;
 
@@ -157,14 +169,14 @@
 	--text: #e2eaf0;
 	--text-muted: #93a3b0;
 
-	--accent: #7cc6de;
-	--accent-bg: #7cc6de;
-	--accent-bg-hover: #a3dbec;
-	--accent-fg: #06222c;
-	--accent-soft: #112c37;
-	--accent-line: #1f4c5d;
+	--accent: #72c9d9;
+	--accent-bg: #72c9d9;
+	--accent-bg-hover: #9adbe7;
+	--accent-fg: #04252c;
+	--accent-soft: #0f2c34;
+	--accent-line: #3a7b88;
 
-	--ok: #63d29a;
+	--ok: #62d18f;
 	--ok-soft: #102a1e;
 	--ok-line: #1e4c36;
 
@@ -358,17 +370,14 @@ code {
 	letter-spacing: -0.01em;
 }
 
-/* Three stacked bars: one gateway, many instances. Drawn in CSS rather than
-   shipped as an SVG so there is nothing else to fetch. */
+/* The gateway's own mark. A relative URL, so it resolves against this
+   stylesheet's own location (/_mux/static/) and stays on our origin — the
+   file is embedded in the binary next to this one. */
 .brand__mark {
-	width: 0.9rem;
-	height: 0.9rem;
+	width: 1.15rem;
+	height: 1.15rem;
 	flex: none;
-	border-radius: 3px;
-	background:
-		linear-gradient(var(--accent) 0 0) 0 0 / 100% 3px no-repeat,
-		linear-gradient(var(--accent) 0 0) 0 50% / 65% 3px no-repeat,
-		linear-gradient(var(--accent) 0 0) 0 100% / 85% 3px no-repeat;
+	background: url("icon.svg") center / contain no-repeat;
 }
 
 .nav {
@@ -748,6 +757,27 @@ select:focus-visible {
 	font-size: var(--fs-sm);
 }
 
+/* Square variant for a button whose whole label is a glyph — the theme
+   toggle. Pairs with .btn--sm: same 2rem box, so it lines up with "Sign out"
+   in the header. The padding goes to zero and the flex centring on .btn does
+   the optical work; a fixed square is steadier than symmetric padding, which
+   would jitter as the icon changes between the three states. The name is
+   still carried by aria-label and title, never by the glyph alone. */
+.btn--icon {
+	width: 2rem;
+	min-width: 2rem;
+	padding: 0;
+	gap: 0;
+	flex: none;
+}
+
+.btn--icon svg {
+	width: 1.05rem;
+	height: 1.05rem;
+	display: block;
+	flex: none;
+}
+
 .btn--block {
 	width: 100%;
 }
@@ -819,14 +849,58 @@ button.link-quiet {
 
 .app-card__head {
 	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
+	/* center rather than baseline now that an icon shares the row: a 28px
+	   image has no text baseline to align to and hangs low if asked to. */
+	align-items: center;
 	gap: var(--s-3);
+}
+
+/* The app's own icon, from its build output. Sized in px rather than rem
+   because it is matched to the width/height attributes on the <img>, which are
+   there to reserve the space before it loads and stop the card jumping. */
+.app-card__icon {
+	width: 28px;
+	height: 28px;
+	flex: none;
+	border-radius: var(--radius-sm);
+	object-fit: contain;
+	/* Some app icons are drawn for a dark chrome and vanish on a light card,
+	   and vice versa. A faint plate behind them costs nothing and means every
+	   app's mark is visible whatever it was designed against. */
+	background: var(--surface-2);
+	padding: 2px;
 }
 
 .app-card__title {
 	font-size: var(--fs-lg);
 	letter-spacing: -0.01em;
+	/* Take the slack so the status pill is pushed to the far edge, which the
+	   old space-between did before the icon joined the row. */
+	flex: 1;
+	min-width: 0;
+}
+
+/* Added date and database size. A definition list because that is what this
+   is — two labelled facts — and it gives screen readers the pairing for free. */
+.app-card__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--s-2) var(--s-5);
+	font-size: var(--fs-xs);
+	color: var(--text-muted);
+}
+
+.app-card__meta > div {
+	display: flex;
+	gap: var(--s-1);
+}
+
+.app-card__meta dt::after { content: ":"; }
+
+.app-card__meta dd {
+	margin: 0;
+	color: var(--text);
+	font-variant-numeric: tabular-nums;
 }
 
 .app-card__desc {
@@ -1282,3 +1356,100 @@ button.link-quiet {
 		box-shadow: none;
 	}
 }
+
+/* ------------------------------------------------------------------ *
+ * Log viewer
+ * ------------------------------------------------------------------ */
+
+.logbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--s-2);
+}
+
+.logbar__spacer { flex: 1; }
+
+/* A fixed-height scroller rather than a page that grows to the length of the
+   buffer: the interesting lines are the last ones, and a 200-line page means
+   scrolling past everything that already worked to reach them. */
+.logview {
+	max-height: 60vh;
+	overflow: auto;
+	overscroll-behavior: contain;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
+.logview__list {
+	list-style: none;
+	margin: 0;
+	padding: var(--s-2) 0;
+	font-family: var(--font-mono);
+	font-size: var(--fs-xs);
+	line-height: 1.5;
+}
+
+.logline {
+	display: flex;
+	gap: var(--s-3);
+	padding: 0.15rem var(--s-3);
+	/* Long JSON log lines are the norm here — these apps log structured JSON —
+	   so wrap rather than scroll sideways, and break anywhere, because a
+	   256-character token has no spaces to break at. */
+	overflow-wrap: anywhere;
+}
+
+.logline:nth-child(odd) { background: var(--surface-2); }
+
+.logline__at {
+	flex: none;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.logline__body {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 var(--s-2);
+	min-width: 0;
+}
+
+.logline__text {
+	white-space: pre-wrap;
+	color: var(--text);
+}
+
+/* The structured key=value tail, muted so the message reads first. It is the
+   part you scan past nine times out of ten. */
+.logline__fields {
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+/* A fixed-width level column so the messages line up in a scannable rail
+   rather than starting at a different x for every row. */
+.logline__level {
+	flex: none;
+	width: 3.2rem;
+	font-size: var(--fs-xs);
+	font-weight: 650;
+	letter-spacing: 0.03em;
+	color: var(--text-muted);
+}
+
+.logline__level--ERROR,
+.logline__level--FATAL { color: var(--danger); }
+.logline__level--WARN  { color: var(--warn); }
+.logline__level--INFO  { color: var(--accent); }
+
+/* stderr is marked with a rule down the side rather than red text: whole lines
+   of red are hard to read, and most of what these apps write to stderr is
+   ordinary startup noise rather than a problem. */
+.logline--err {
+	box-shadow: inset 3px 0 0 var(--danger);
+	background: var(--danger-soft);
+}
+
+.logline--err:nth-child(odd) { background: var(--danger-soft); }

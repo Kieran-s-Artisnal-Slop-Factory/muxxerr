@@ -104,6 +104,40 @@ import sqlite3;c=sqlite3.connect('ex.db');print(','.join(r[0] for r in c.execute
 is "self-export works" "$(code -b j2.txt $B/apps/readerr/export)" "200"
 is "non-admin cannot export another user" "$(code -b j2.txt $B/admin/instances/kieran/readerr/export)" "403"
 
+echo "── PWA assets are readable without a session ─────────────"
+# A browser fetches <link rel="manifest"> with credentials OMITTED, so these
+# must answer anonymously or every app is permanently un-installable.
+for f in manifest.webmanifest icon.svg favicon.svg favicon.ico icon-maskable.svg; do
+  is "anonymous $f" "$(code $B/kieran/readerr/$f)" "200"
+done
+is "manifest declares the right type" "$(curl -s -o /dev/null -w '%{content_type}' $B/kieran/readerr/manifest.webmanifest)" "application/manifest+json"
+is "the app shell is still behind auth" "$(code -H 'Sec-Fetch-Mode: navigate' $B/kieran/readerr/)" "303"
+is "the API is still behind auth" "$(code -H 'Sec-Fetch-Mode: cors' "$B/kieran/readerr/sync/pull?since=0")" "401"
+# net/http normalises the path and redirects; what matters is where you end
+# up, which must not be a file outside the app's dist directory.
+is "no traversal through the public path" "$(curl -s -L -o /dev/null -w '%{http_code}' --path-as-is "$B/kieran/readerr/../../../go.mod")" "404"
+
+echo "── dashboard metadata ────────────────────────────────────"
+DASH=$(curl -s -b j1.txt $B/)
+has "app icon rendered" "$DASH" 'app-card__icon'
+has "added date rendered" "$DASH" '<dt>Added</dt>'
+has "database size rendered" "$DASH" '<dt>Database</dt>'
+has "logs link rendered" "$DASH" '/apps/readerr/logs'
+
+echo "── log viewer ────────────────────────────────────────────"
+is "owner can read their own logs" "$(code -b j1.txt $B/apps/readerr/logs)" "200"
+has "log lines rendered" "$(curl -s -b j1.txt $B/apps/readerr/logs)" 'class="logline'
+has "structured level extracted" "$(curl -s -b j1.txt $B/apps/readerr/logs)" 'logline__level'
+is "a static app has no log page" "$(code -b j1.txt $B/apps/nosuchapp/logs)" "404"
+is "another user cannot read them" "$(code -b j2.txt $B/admin/instances/kieran/readerr/logs)" "403"
+is "an admin can" "$(code -b j1.txt $B/admin/instances/alex/readerr/logs)" "200"
+is "logs need a session" "$(code $B/apps/readerr/logs)" "303"
+
+echo "── static assets are content-addressed ───────────────────"
+VER=$(curl -s $B/login | grep -oE '/_mux/static/[a-f0-9]+/mux.css' | head -1)
+has "stylesheet URL carries a version" "$VER" '/_mux/static/[a-f0-9]'
+has "versioned assets are immutable" "$(curl -s -D - -o /dev/null $B$VER | grep -i cache-control)" 'immutable'
+
 echo
 echo "══════════════════════════════════════════════════════════"
 printf "  %d passed, %d failed\n" "$pass" "$fail"

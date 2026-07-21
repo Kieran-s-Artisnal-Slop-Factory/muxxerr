@@ -1,0 +1,87 @@
+{{/*
+	One instance's recent output.
+
+	Deliberately plain: a monospace column, newest at the bottom, stderr marked.
+	No filtering, no search, no live tail — the buffer is a couple of hundred
+	lines held in memory, and anything that needs more than that needs the
+	server's own logs, not a worse copy of them in a web page.
+
+	The refresh is a plain link rather than a poll. A page that reloads itself
+	every few seconds is a page that will still be reloading itself at 3am on a
+	forgotten tab, and this costs one click when you actually want it.
+*/}}
+{{define "title"}}{{.Title}} logs{{end}}
+
+{{define "content"}}
+<div class="stack">
+	<div class="page-head">
+		<h1>{{.Title}} logs</h1>
+		<p class="muted">
+			{{if .ForOther}}
+				The last {{.Limit}} lines from <strong>{{.Owner}}</strong>'s instance.
+				They have not been told you are reading these; the action is in the audit log.
+			{{else}}
+				The last {{.Limit}} lines your instance wrote.
+			{{end}}
+		</p>
+	</div>
+
+	<div class="logbar">
+		<span class="status {{if .Running}}status--live{{end}}">
+			<span class="status__dot" aria-hidden="true"></span>{{if .Running}}Running{{else}}Not running{{end}}
+		</span>
+		<span class="logbar__spacer"></span>
+		<a class="btn btn--ghost btn--sm" href="?n={{.Limit}}">Refresh</a>
+		{{if lt .Limit .Capacity}}
+			<a class="btn btn--ghost btn--sm" href="?n={{.Capacity}}">Show all {{.Capacity}}</a>
+		{{end}}
+		<a class="btn btn--ghost btn--sm" href="{{.AppURL}}">Open {{.Title}}</a>
+	</div>
+
+	{{if .Lines}}
+		{{/*
+			tabindex on a scrollable region so it can be reached and scrolled by
+			keyboard; without it a long log is unreachable without a mouse.
+		*/}}
+		<div class="logview" tabindex="0" role="region" aria-label="{{.Title}} log output">
+			<ol class="logview__list">
+				{{/*
+					These apps log structured JSON, so the handler unpacks it and
+					the message gets to be the readable part. A line that was not
+					JSON — a panic, most importantly — has no Level and falls
+					through to the same plain rendering.
+				*/}}
+				{{range .Lines}}
+					<li class="logline {{if .IsErr}}logline--err{{end}}">
+						<time class="logline__at">{{.At}}</time>
+						{{if .Level}}<span class="logline__level logline__level--{{.Level}}">{{.Level}}</span>{{end}}
+						<span class="logline__body">
+							<span class="logline__text">{{.Text}}</span>
+							{{with .Fields}}<span class="logline__fields">{{.}}</span>{{end}}
+						</span>
+					</li>
+				{{end}}
+			</ol>
+		</div>
+	{{else}}
+		<div class="empty">
+			<p><strong>Nothing logged yet.</strong></p>
+			<p class="muted">
+				{{if .Running}}
+					The instance is running but has not written anything since it started.
+				{{else}}
+					Output is kept in memory while the gateway runs, so an instance that has not
+					started since the last restart has nothing to show. Open {{.Title}} and come back.
+				{{end}}
+			</p>
+		</div>
+	{{end}}
+
+	<p class="hint">
+		These are the app's own messages, kept in memory only &mdash; a few hundred lines per
+		instance, cleared when the gateway restarts. They are diagnostics, not a record.
+	</p>
+
+	<p><a class="link-quiet" href="/">&larr; Back to your apps</a></p>
+</div>
+{{end}}

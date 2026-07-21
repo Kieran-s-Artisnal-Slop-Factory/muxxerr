@@ -184,6 +184,47 @@ sources. Do not include it; it is the large directory.
   every user with workoutt has a permanently resident process, by design, because
   its notification scheduler only runs while the process does.
 
+## Reading an instance's logs
+
+Every child process's output is kept in a small in-memory ring — a couple of
+hundred lines per instance — and both the owner and an admin can read the tail
+of it. Users get a **Logs** link on each app card; admins get one beside every
+running instance on the admin page.
+
+The lines are the app's own `slog` output, unpacked from JSON so the message
+reads first and the structured fields sit underneath. Anything that is not JSON
+— a panic, most importantly — is shown verbatim.
+
+Two things to know:
+
+- **It is in memory only.** A gateway restart clears every buffer. This is
+  deliberate: persisting them would mean rotation, retention and disk budgets,
+  and a new place for an app to leak something, in exchange for answering a
+  question that is nearly always about the last minute. The gateway's own
+  stdout still has everything, tagged with user and app, if you ship it
+  somewhere.
+- **An admin reading someone else's logs is audited**, the same as exporting
+  their database, and the page says so on the way in.
+
+## Serving the apps' PWA assets
+
+`manifest.webmanifest`, `favicon.ico`, `icon.svg` and their siblings are served
+**without a session**, straight from the app's build directory, without starting
+a child process.
+
+That is not an oversight. A browser fetches `<link rel="manifest">` with
+credentials omitted — no cookies — so requiring a session there means the fetch
+401s and the app can never be installed as a PWA. The alternative fix is adding
+`crossorigin="use-credentials"` to every app's layout, which is an upstream
+change to every app including ones that do not exist yet, for a file that
+contains nothing but the app's name and colours and is byte-identical for every
+user.
+
+The list is deliberately short and exact: only a bare filename at the root of
+the app's build, only names on the list, no nesting, no traversal. The app shell
+and the sync API stay behind auth. The gateway also answers identically for a
+username that does not exist, so this cannot be used to enumerate accounts.
+
 ## Security caveats
 
 These are the things you should say out loud before giving anyone the address.

@@ -203,6 +203,8 @@
 										{{$.Page.CSRFField}}
 										<button class="btn btn--sm" type="submit">Stop</button>
 									</form>
+									{{/* Reading someone else's logs is audited; the page says so too. */}}
+									<a class="link-quiet" href="/admin/instances/{{$i.Username}}/{{$i.App}}/logs">Logs</a>
 								</td>
 							</tr>
 						{{end}}

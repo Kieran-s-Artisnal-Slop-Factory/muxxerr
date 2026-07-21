@@ -34,6 +34,18 @@
 <meta name="referrer" content="same-origin">
 <title>{{template "title" .}} &middot; {{.Page.SiteName}}</title>
 <link rel="stylesheet" href="{{.Page.StaticURL}}/mux.css">
+{{/* Served from the embedded static dir like everything else; no /favicon.ico
+     round trip to a file we do not have. */}}
+{{/*
+	The SVG first, because it is the one that adapts to a dark browser chrome;
+	the .ico is the fallback for anything that will not take an SVG favicon, and
+	Safari on iOS wants the 180px PNG when the page is added to a home screen.
+	All three are content-addressed through StaticURL, so upgrading the binary
+	changes the URL and no browser is left holding the previous mark.
+*/}}
+<link rel="icon" href="{{.Page.StaticURL}}/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="{{.Page.StaticURL}}/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="{{.Page.StaticURL}}/icon-180.png">
 {{/*
 	Applied before first paint so a person who chose "dark" never gets a white
 	flash on navigation. Failing silently is correct: a blocked or broken
@@ -112,9 +124,21 @@
 		var root = document.documentElement;
 		var order = ["system", "light", "dark"];
 		var labels = { system: "System", light: "Light", dark: "Dark" };
+
+		// Icons rather than the words "System"/"Light"/"Dark", which were
+		// ambiguous about whether they named the current state or the action.
+		// Inline SVG, drawn in currentColor so the glyph follows the button's
+		// own colour in both themes — an icon font or a sprite file would be
+		// another request, and there are none on this page.
+		var icons = {
+			system: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true' focusable='false'><circle cx='12' cy='12' r='9'></circle><path d='M12 3a9 9 0 0 0 0 18z' fill='currentColor' stroke='none'></path></svg>",
+			light: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true' focusable='false'><circle cx='12' cy='12' r='4.2'></circle><path d='M12 2.2v2.4M12 19.4v2.4M4.1 4.1l1.7 1.7M18.2 18.2l1.7 1.7M2.2 12h2.4M19.4 12h2.4M4.1 19.9l1.7-1.7M18.2 5.8l1.7-1.7'></path></svg>",
+			dark: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true' focusable='false'><path d='M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z'></path></svg>"
+		};
+
 		var btn = document.createElement("button");
 		btn.type = "button";
-		btn.className = "btn btn--ghost btn--sm";
+		btn.className = "btn btn--ghost btn--sm btn--icon";
 
 		function current() {
 			var t = root.getAttribute("data-theme");
@@ -122,8 +146,14 @@
 		}
 		function paint() {
 			var c = current();
-			btn.textContent = labels[c];
-			btn.setAttribute("aria-label", "Colour theme: " + labels[c] + ". Click to change.");
+			var next = order[(order.indexOf(c) + 1) % order.length];
+			// The glyph is decorative; the name of the control and what it
+			// does live in the label, which is what a screen reader reads and
+			// what the tooltip shows.
+			var label = "Colour theme: " + labels[c] + ". Click to switch to " + labels[next] + ".";
+			btn.innerHTML = icons[c];
+			btn.setAttribute("aria-label", label);
+			btn.setAttribute("title", label);
 		}
 		btn.addEventListener("click", function () {
 			var next = order[(order.indexOf(current()) + 1) % order.length];

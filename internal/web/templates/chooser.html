@@ -38,6 +38,16 @@
 				{{range .Installed}}
 					<li class="app-card">
 						<div class="app-card__head">
+							{{/*
+								The app's own icon, taken from its build output. It is served
+								without a session (the gateway treats icons and the manifest as
+								public, since they are byte-identical for every user), so it
+								loads before anything else on the card. Decorative: the title
+								is right beside it, so an alt text would only be read twice.
+							*/}}
+							{{if .IconURL}}
+								<img class="app-card__icon" src="{{.IconURL}}" alt="" width="28" height="28" loading="lazy">
+							{{end}}
 							<h3 class="app-card__title">{{.Title}}</h3>
 							{{if .Running}}
 								<span class="status status--live"><span class="status__dot" aria-hidden="true"></span>Running</span>
@@ -46,6 +56,10 @@
 							{{end}}
 						</div>
 						<p class="app-card__desc">{{.Description}}</p>
+						<dl class="app-card__meta">
+							<div><dt>Added</dt><dd>{{.Added}}</dd></div>
+							<div><dt>Database</dt><dd>{{.Size}}</dd></div>
+						</dl>
 						<div class="app-card__foot">
 							<a class="btn btn--primary" href="{{.URL}}">Open<span class="sr-only"> {{.Title}}</span></a>
 							<code class="app-card__path">{{.URL}}</code>
@@ -58,6 +72,7 @@
 							job, on a page with more friction than this one.
 						*/}}
 						<div class="app-card__tools">
+							{{if .LogsURL}}<a class="link-quiet" href="{{.LogsURL}}">Logs</a>{{end}}
 							<a class="link-quiet" href="/apps/{{.Name}}/export">Download data</a>
 							<form class="inline" method="post" action="/apps/{{.Name}}/remove"
 								data-confirm="Hide {{.Title}} from your dashboard? Your data stays on the server and comes back if you add it again.">

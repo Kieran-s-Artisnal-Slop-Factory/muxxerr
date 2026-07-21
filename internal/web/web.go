@@ -12,7 +12,9 @@ package web
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
@@ -20,6 +22,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -73,6 +76,11 @@ type Server struct {
 	tmpl        map[string]*template.Template
 	siteName    string
 	resetTokens *resetTokenStore
+	// icons maps an app name to the icon filename found in its build.
+	// Populated once at startup by resolveIcons.
+	icons map[string]string
+	// assetVer fingerprints the embedded static files; see staticVersion.
+	assetVer string
 }
 
 // New parses every page template up front: a template error should stop the
@@ -84,6 +92,7 @@ func New(cfg *config.Config, st *store.Store, pepper auth.Pepper, sup *superviso
 		tmpl:        map[string]*template.Template{},
 		siteName:    "Multiplexer",
 		resetTokens: newResetTokenStore(),
+		assetVer:    computeAssetVersion(),
 	}
 	pages, err := fs.Glob(templateFS, "templates/*.html")
 	if err != nil {
@@ -102,11 +111,12 @@ func New(cfg *config.Config, st *store.Store, pepper auth.Pepper, sup *superviso
 		}
 		s.tmpl[name] = t
 	}
-	for _, required := range []string{"login", "signup", "passphrase", "reset", "chooser", "account", "admin", "error"} {
+	for _, required := range []string{"login", "signup", "passphrase", "reset", "chooser", "account", "admin", "error", "logs"} {
 		if _, ok := s.tmpl[required]; !ok {
 			return nil, fmt.Errorf("missing template %s.html", required)
 		}
 	}
+	s.resolveIcons()
 	return s, nil
 }
 
@@ -143,7 +153,7 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request, title string) Page
 		User:      s.UserFor(r),
 		Flash:     takeFlash(w, r),
 		CSRFField: s.csrfField(w, r),
-		StaticURL: staticPrefix,
+		StaticURL: staticPrefix + "/" + s.assetVer,
 	}
 }
 
@@ -429,6 +439,44 @@ func (s *Server) requireAdmin(w http.ResponseWriter, r *http.Request) *store.Use
 	return u
 }
 
+// staticVersion is a short digest of every embedded asset, computed once at
+// startup and spliced into their URLs: /_mux/static/<version>/mux.css.
+//
+// This exists because the obvious thing — a long max-age on a fixed URL — is
+// wrong in a way that only shows up after a deploy. The assets are baked into
+// the binary, so "how long should the browser keep this" and "has this
+// changed" have the same answer: forever, until the binary does. Without a
+// version in the path, upgrading the gateway leaves every existing visitor on
+// the previous stylesheet until their cache expires, which is exactly the
+// stale-CSS confusion this was found by. With one, a new binary means a new
+// URL and the question never arises.
+func (s *Server) staticVersion() string { return s.assetVer }
+
+func computeAssetVersion() string {
+	h := sha256.New()
+	// Walk in a deterministic order so the same binary always produces the
+	// same version — fs.WalkDir is lexical, which is what we want.
+	err := fs.WalkDir(staticFS, "static", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		blob, rerr := staticFS.ReadFile(p)
+		if rerr != nil {
+			return rerr
+		}
+		h.Write([]byte(p))
+		h.Write(blob)
+		return nil
+	})
+	if err != nil {
+		// A digest we cannot compute must not become a constant that pins
+		// every browser to one version of the assets forever.
+		slog.Error("hashing static assets", "error", err)
+		return strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12]
+}
+
 // StaticHandler serves the gateway's own stylesheet and assets.
 func (s *Server) StaticHandler() http.Handler {
 	sub, err := fs.Sub(staticFS, "static")
@@ -438,8 +486,20 @@ func (s *Server) StaticHandler() http.Handler {
 	}
 	fileServer := http.FileServer(http.FS(sub))
 	return http.StripPrefix(staticPrefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Embedded assets change only when the binary does.
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		// Strip the version segment, if present. Requests without one still
+		// work — a bookmarked /_mux/static/mux.css, or an app referencing the
+		// icon directly — they just do not get the immutable caching.
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if v, rest, ok := strings.Cut(path, "/"); ok && v == s.assetVer {
+			r = r.Clone(r.Context())
+			r.URL.Path = "/" + rest
+			// Content-addressed: this exact URL can never mean anything else.
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			// Unversioned: let the browser keep it briefly but check back, so
+			// an upgrade is picked up on the next visit rather than in an hour.
+			w.Header().Set("Cache-Control", "public, max-age=300, must-revalidate")
+		}
 		fileServer.ServeHTTP(w, r)
 	}))
 }

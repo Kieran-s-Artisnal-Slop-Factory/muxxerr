@@ -180,6 +180,15 @@ func (g *Gateway) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	prefix := "/" + username + "/" + app.Name
 
+	// --- the PWA manifest and its icons, before any auth check. The browser
+	// fetches these without cookies, so requiring a session makes every app
+	// permanently un-installable. See public.go.
+	if assetPath := strings.TrimPrefix(r.URL.Path, prefix); IsPublicAsset(assetPath) {
+		if g.ServePublicAsset(w, r, username, app.Name, assetPath) {
+			return
+		}
+	}
+
 	// --- identity
 	caller := g.auth.UserFor(r)
 	if caller == nil {

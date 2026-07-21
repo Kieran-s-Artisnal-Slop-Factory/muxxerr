@@ -1,0 +1,66 @@
+<!--
+  local multiplexer — app icon.
+
+  The mark is a branching path: one gateway node on the left (the single door
+  you log in through) fanning out through two waypoints into four leaf nodes
+  (the isolated per-user app instances at /<username>/<app>/). One in, many
+  out, nothing crossing between the branches.
+
+  Colours are explicit hex, not currentColor, because this file is also loaded
+  as <img> and as a favicon where currentColor has nothing to resolve against.
+  The presentation attributes carry the light default; the <style> block below
+  overrides them for dark chrome. The light default is deliberately a cyan
+  plate with a near-white network, so it stays legible on a dark background
+  even if the media query never runs.
+
+  viewBox is 0 0 64 64 rather than 32: the full mark has three tiers of nodes
+  and needs the extra grid resolution to keep the fan spacing even without
+  fractional coordinates everywhere. The favicon, which has one tier, uses 32.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="local multiplexer">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      /* Sink the plate, raise the network: against near-black browser chrome
+         the silhouette is carried by the bright nodes, and a deeper plate
+         buys back internal contrast. */
+      .plate  { fill: #0A5A6E; }
+      .trunk  { stroke: #F2FDFF; }
+      .node   { fill: #F2FDFF; }
+      .branch { stroke: #4FE3EE; }
+      .leaf   { fill: #4FE3EE; }
+    }
+  </style>
+
+  <!-- plate -->
+  <rect class="plate" x="0" y="0" width="64" height="64" rx="13" fill="#0E7490"/>
+
+  <g fill="none" stroke-linecap="round">
+    <!-- gateway -> waypoints -->
+    <g class="trunk" stroke="#EAFBFF" stroke-width="3.2">
+      <path d="M14 32 C23 32, 23 18, 32 18"/>
+      <path d="M14 32 C23 32, 23 46, 32 46"/>
+    </g>
+    <!-- waypoints -> instances -->
+    <g class="branch" stroke="#3FD9E4" stroke-width="2.4">
+      <path d="M32 18 C41 18, 41 10, 50 10"/>
+      <path d="M32 18 C41 18, 41 26, 50 26"/>
+      <path d="M32 46 C41 46, 41 38, 50 38"/>
+      <path d="M32 46 C41 46, 41 54, 50 54"/>
+    </g>
+  </g>
+
+  <!-- gateway + waypoints -->
+  <g class="node" fill="#EAFBFF">
+    <circle cx="14" cy="32" r="5.2"/>
+    <circle cx="32" cy="18" r="4"/>
+    <circle cx="32" cy="46" r="4"/>
+  </g>
+
+  <!-- instances -->
+  <g class="leaf" fill="#3FD9E4">
+    <circle cx="50" cy="10" r="3.4"/>
+    <circle cx="50" cy="26" r="3.4"/>
+    <circle cx="50" cy="38" r="3.4"/>
+    <circle cx="50" cy="54" r="3.4"/>
+  </g>
+</svg>

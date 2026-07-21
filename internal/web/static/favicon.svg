@@ -1,0 +1,41 @@
+<!--
+  local multiplexer — favicon. Same idea as icon.svg, rebuilt for 16-32px
+  rather than scaled down from it.
+
+  What changed and why: the middle tier of waypoints is gone (one gateway
+  fanning straight to three instances, not 1 -> 2 -> 4), the curves are
+  straight lines because a 1.5px bezier is just a smudge, the strokes are
+  proportionally thicker, the nodes are further apart, and the whole network
+  is a single near-white on the cyan plate — the second cyan reads as mud at
+  this size, so the plate carries the colour and the network carries the
+  contrast.
+
+  viewBox is 0 0 32 32: one tier of nodes needs no more grid than that, and
+  keeping every coordinate on a coarse grid is what stops the mark drifting
+  off pixel boundaries at 16px. make-icons.py reproduces this geometry
+  literally for the .ico and the apple-touch PNG.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="local multiplexer">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .plate { fill: #0A5A6E; }
+      .net   { stroke: #F2FDFF; }
+      .node  { fill: #F2FDFF; }
+    }
+  </style>
+
+  <rect class="plate" x="0" y="0" width="32" height="32" rx="7" fill="#0E7490"/>
+
+  <g class="net" fill="none" stroke="#EAFBFF" stroke-width="3" stroke-linecap="round">
+    <path d="M10 16 L23 6.5"/>
+    <path d="M10 16 L23 16"/>
+    <path d="M10 16 L23 25.5"/>
+  </g>
+
+  <g class="node" fill="#EAFBFF">
+    <circle cx="10" cy="16" r="4"/>
+    <circle cx="23" cy="6.5" r="3.2"/>
+    <circle cx="23" cy="16" r="3.2"/>
+    <circle cx="23" cy="25.5" r="3.2"/>
+  </g>
+</svg>

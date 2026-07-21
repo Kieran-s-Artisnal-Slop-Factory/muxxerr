@@ -53,6 +53,7 @@ func Routes(s *Server, gw *gateway.Gateway, cfg *config.Config) http.Handler {
 	mux.HandleFunc("POST /apps/{app}/install", s.HandleAddApp)
 	mux.HandleFunc("POST /apps/{app}/remove", s.HandleRemoveApp)
 	mux.HandleFunc("GET /apps/{app}/export", s.HandleExportOwn)
+	mux.HandleFunc("GET /apps/{app}/logs", s.HandleLogs)
 
 	// --- administration
 	mux.HandleFunc("GET /admin", s.HandleAdmin)
@@ -63,6 +64,7 @@ func Routes(s *Server, gw *gateway.Gateway, cfg *config.Config) http.Handler {
 	mux.HandleFunc("POST /admin/users/{id}/delete", s.HandleAdminDeleteUser)
 	mux.HandleFunc("POST /admin/instances/{user}/{app}/stop", s.HandleAdminStopInstance)
 	mux.HandleFunc("GET /admin/instances/{user}/{app}/export", s.HandleAdminExport)
+	mux.HandleFunc("GET /admin/instances/{user}/{app}/logs", s.HandleLogs)
 	mux.HandleFunc("POST /admin/settings/signups", s.HandleAdminSignups)
 
 	// --- the compatibility shim for apps that call their API at the origin

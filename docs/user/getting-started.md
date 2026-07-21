@@ -84,6 +84,19 @@ Worth knowing:
   recently are shut down to save memory and start again on demand. It takes
   about a tenth of a second; you will mostly not notice.
 
+Each app on your dashboard shows when you added it and how much space its
+database takes on the server, along with three links:
+
+- **Logs** — the last 50 lines your instance wrote. If an app is misbehaving,
+  look here before asking anyone: a failed sync or a startup problem usually
+  says so in plain words. These are kept in memory only, so they are cleared
+  whenever the server restarts, and they go back a few hundred lines at most.
+  They are for answering "why did that just fail", not for keeping records.
+- **Download data** — a consistent snapshot of that app's database, as a single
+  SQLite file. Safe to take at any time, including while the app is running.
+- **Remove** — takes the app off your dashboard. It does **not** delete
+  anything: add the app again and your data comes back.
+
 ## 5. Changing your password
 
 **Account** → change password. You need your current password.

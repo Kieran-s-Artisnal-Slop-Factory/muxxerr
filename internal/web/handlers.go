@@ -16,6 +16,13 @@ type installedApp struct {
 	Description string
 	URL         string
 	Running     bool
+	// IconURL points at the app's own icon inside its build. It is served
+	// without a session (see gateway/public.go), so it also renders on the
+	// login page if that is ever wanted.
+	IconURL string
+	Added   string // date the user provisioned it
+	Size    string // on-disk database size, humanised
+	LogsURL string
 }
 
 type availableApp struct {
@@ -68,13 +75,27 @@ func (s *Server) HandleRoot(w http.ResponseWriter, r *http.Request) {
 		}
 		have[app.Name] = true
 		_, running := s.sup.Get(u.Username, app.Name)
-		v.Installed = append(v.Installed, installedApp{
+		base := "/" + u.Username + "/" + app.Name + "/"
+		card := installedApp{
 			Name:        app.Name,
 			Title:       app.Title,
 			Description: app.Description,
-			URL:         "/" + u.Username + "/" + app.Name + "/",
+			URL:         base,
 			Running:     running || app.Kind == config.KindStatic,
-		})
+			Added:       in.CreatedAt.Local().Format("2 Jan 2006"),
+			Size:        humanBytes(instanceDBBytes(s.cfg, u.Username, app)),
+		}
+		// A static app has no child process, so it has nothing to log and no
+		// database to size. Offering the links anyway would be two dead ends.
+		if app.Kind == config.KindSync {
+			card.LogsURL = "/apps/" + app.Name + "/logs"
+		} else {
+			card.Size = "no database"
+		}
+		if icon := s.appIcon(app.Name); icon != "" {
+			card.IconURL = base + icon
+		}
+		v.Installed = append(v.Installed, card)
 	}
 	for i := range s.cfg.Apps {
 		a := &s.cfg.Apps[i]

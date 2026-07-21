@@ -171,6 +171,13 @@ type Supervisor struct {
 	crashes   map[string]*crashTracker
 	closed    bool
 
+	// logs holds a short tail of each instance's output, keyed the same way
+	// as instances but with its own lock: a page reading logs must never
+	// contend with a cold start, and a child writing a line must never wait
+	// on the map that governs process lifecycle. See logbuf.go.
+	logMu sync.Mutex
+	logs  map[string]*logRing
+
 	done chan struct{} // closed by StopAll; stops the janitor
 }
 
@@ -182,6 +189,7 @@ func New(cfg *config.Config) *Supervisor {
 		now:       time.Now,
 		instances: make(map[string]*Instance),
 		crashes:   make(map[string]*crashTracker),
+		logs:      make(map[string]*logRing),
 		done:      make(chan struct{}),
 		probe: &http.Client{
 			Timeout: healthTimeout,
@@ -447,6 +455,13 @@ func (s *Supervisor) spawn(ctx context.Context, inst *Instance) error {
 	base := slog.With("user", inst.Username, "app", inst.App.Name, "port", port)
 	outLog := newLineLogger(base.With("stream", "stdout"), slog.LevelInfo)
 	errLog := newLineLogger(base.With("stream", "stderr"), slog.LevelWarn)
+	// Every line goes two places: the gateway's own log, as before, and a
+	// small per-instance ring the owner can read from the dashboard. Tapping
+	// the same writer rather than adding a second pipe keeps the ordering
+	// guarantee that made io.Writer the right choice here in the first place.
+	key := instanceKey(inst.Username, inst.App.Name)
+	outLog.tap = func(line string) { s.record(key, "stdout", line) }
+	errLog.tap = func(line string) { s.record(key, "stderr", line) }
 	// Assigning io.Writers rather than using StdoutPipe is deliberate: os/exec
 	// then owns the pipes and cmd.Wait blocks until both have been drained, so
 	// the last lines of a dying child are never lost to a race between Wait
@@ -984,7 +999,11 @@ type lineLogger struct {
 	log   *slog.Logger
 	level slog.Level
 	emit  func(string)
-	buf   []byte
+	// tap, if set, receives every line in addition to the logger. It is
+	// assigned once at spawn before the child exists, and only ever called
+	// from the single os/exec copier goroutine, so it needs no lock.
+	tap func(string)
+	buf []byte
 }
 
 func newLineLogger(log *slog.Logger, level slog.Level) *lineLogger {
@@ -1032,4 +1051,7 @@ func (l *lineLogger) send(line []byte) {
 		return
 	}
 	l.emit(s)
+	if l.tap != nil {
+		l.tap(s)
+	}
 }
