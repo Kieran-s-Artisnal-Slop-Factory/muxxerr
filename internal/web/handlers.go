@@ -4,6 +4,7 @@ package web
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"local-multiplexer/internal/auth"
 	"local-multiplexer/internal/config"
@@ -23,6 +24,9 @@ type installedApp struct {
 	Added   string // date the user provisioned it
 	Size    string // on-disk database size, humanised
 	LogsURL string
+	// ExploreURL opens this app's database in the snapshot viewer. Only set
+	// for apps that have a database to explore.
+	ExploreURL string
 }
 
 type availableApp struct {
@@ -89,6 +93,7 @@ func (s *Server) HandleRoot(w http.ResponseWriter, r *http.Request) {
 		// database to size. Offering the links anyway would be two dead ends.
 		if app.Kind == config.KindSync {
 			card.LogsURL = "/apps/" + app.Name + "/logs"
+			card.ExploreURL = "/tools/sqlite?app=" + url.QueryEscape(app.Name)
 		} else {
 			card.Size = "no database"
 		}

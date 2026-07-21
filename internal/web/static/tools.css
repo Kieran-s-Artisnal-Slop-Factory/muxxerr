@@ -1,0 +1,603 @@
+/*
+ * Styling for the snapshot viewer, and only for it.
+ *
+ * Loaded through PageData.ExtraCSS rather than appended to mux.css, because
+ * this is a couple of hundred lines of grid-and-rail layout that exactly one
+ * page wants and the login screen should not be downloading.
+ *
+ * It defines no tokens and overrides none. Every colour, size and radius here
+ * comes from mux.css, which is what makes the page follow the theme toggle
+ * without a second dark-mode block to keep in sync. Anything that already has
+ * a house class (.btn, .card, .field, .empty, .hint, .note, .alert, .status)
+ * is used as-is; the rules below only add what has no equivalent yet.
+ *
+ * The one hard layout rule: the page body never scrolls sideways. Both grids
+ * scroll inside their own container, and the main column carries min-width: 0
+ * so a wide table pushes against its own scrollbar rather than the document's.
+ */
+
+/* The module toggles `hidden` on elements that are flex or grid containers,
+   and `display: flex` beats the UA's `[hidden] { display: none }`. */
+[hidden] {
+	display: none !important;
+}
+
+/* ------------------------------------------------------------------ *
+ * The standing "this is a copy" note
+ * ------------------------------------------------------------------ */
+
+/* Louder than a plain .note — it is the sentence the whole page is built
+   around — but still not an alert, because nothing has gone wrong. */
+.note.sv-copy {
+	background: var(--accent-soft);
+	border-left-color: var(--accent);
+	color: var(--text);
+	font-size: var(--fs-base);
+}
+
+/* ------------------------------------------------------------------ *
+ * Source picker
+ * ------------------------------------------------------------------ */
+
+.sv-sources {
+	display: grid;
+	gap: var(--s-5);
+	/* min() rather than a bare minmax so a single column cannot overflow a
+	   360px viewport. */
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.sv-source {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--s-3);
+	min-width: 0;
+}
+
+/* Three peers, so they are labelled rather than ranked; the primary button in
+   the first column is what says which one is the usual answer. */
+.sv-source__title {
+	font-size: var(--fs-sm);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-weight: 750;
+	color: var(--text-muted);
+}
+
+.sv-source .field,
+.sv-source .hint {
+	width: 100%;
+}
+
+/* The UA file control is unstyleable in the interesting parts; this just stops
+   it looking like it belongs to a different site than the fields above it. */
+.sv-source input[type="file"] {
+	width: 100%;
+	font-size: var(--fs-sm);
+	background: var(--surface-2);
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius);
+	padding: var(--s-3);
+	cursor: pointer;
+}
+
+.sv-source input[type="file"]::file-selector-button {
+	font: inherit;
+	font-weight: 600;
+	margin-right: var(--s-3);
+	padding: var(--s-1) var(--s-3);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	color: var(--text);
+	cursor: pointer;
+}
+
+/* Drop target feedback on the whole page rather than a dedicated rectangle:
+   people drop files where the page is, not where a box invites them to. */
+.sv-drop--over {
+	outline: 2px dashed var(--accent);
+	outline-offset: var(--s-3);
+	border-radius: var(--radius-lg);
+}
+
+/* ------------------------------------------------------------------ *
+ * Boot / download progress
+ * ------------------------------------------------------------------ */
+
+.sv-boot {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: var(--s-4);
+}
+
+.sv-boot__text {
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.sv-bar {
+	position: relative;
+	height: 6px;
+	border-radius: var(--radius-full);
+	background: var(--surface-2);
+	overflow: hidden;
+}
+
+.sv-bar__fill {
+	display: block;
+	height: 100%;
+	width: 0;
+	border-radius: var(--radius-full);
+	background: var(--accent);
+	transition: width 120ms linear;
+}
+
+/* Used while the WebAssembly runtime starts. The loader owns that fetch, so
+   there is no byte count to report and a fake percentage would be worse than
+   an honest "something is happening". */
+.sv-bar--indeterminate .sv-bar__fill {
+	width: 35%;
+	animation: sv-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes sv-slide {
+	0%   { transform: translateX(-100%); }
+	100% { transform: translateX(300%); }
+}
+
+/* mux.css flattens every animation under reduced motion, which would leave the
+   indeterminate bar parked off-screen and looking broken. Give it a static
+   resting state instead. */
+@media (prefers-reduced-motion: reduce) {
+	.sv-bar--indeterminate .sv-bar__fill {
+		width: 100%;
+		opacity: 0.4;
+		transform: none;
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Workspace shell
+ * ------------------------------------------------------------------ */
+
+.sv-workspace {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-4);
+	min-width: 0;
+}
+
+.sv-bar-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--s-2);
+}
+
+.sv-bar-row__spacer {
+	flex: 1;
+}
+
+.sv-split {
+	display: grid;
+	gap: var(--s-4);
+	grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+	align-items: start;
+}
+
+/* Without this the grid track sizes to the widest table and the document
+   scrolls sideways — the single most common way this layout breaks. */
+.sv-main {
+	min-width: 0;
+}
+
+@media (max-width: 60rem) {
+	.sv-split {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Table / view rail
+ * ------------------------------------------------------------------ */
+
+.sv-rail {
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-2);
+	min-width: 0;
+}
+
+.sv-rail__list {
+	list-style: none;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	/* Some app databases have a lot of tables; the rail scrolls rather than
+	   making the page taller than the content next to it. */
+	max-height: 60vh;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.sv-rail__btn {
+	display: flex;
+	align-items: baseline;
+	gap: var(--s-2);
+	width: 100%;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	padding: var(--s-2) var(--s-3);
+	font-size: var(--fs-sm);
+	text-align: left;
+	color: var(--text);
+	cursor: pointer;
+}
+
+.sv-rail__btn:hover {
+	background: var(--surface-2);
+	border-color: var(--border);
+}
+
+/* The selected table is marked with a filled plate and a weight change, not
+   colour alone. */
+.sv-rail__btn--active {
+	background: var(--accent-soft);
+	border-color: var(--accent-line);
+	font-weight: 650;
+}
+
+.sv-rail__name {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.sv-rail__kind {
+	font-size: var(--fs-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+	flex: none;
+}
+
+.sv-rail__count {
+	flex: none;
+	font-size: var(--fs-xs);
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ *
+ * Grids
+ * ------------------------------------------------------------------ */
+
+.sv-panel-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-3);
+}
+
+.sv-panel-head h2 {
+	font-family: var(--font-mono);
+	font-size: var(--fs-base);
+	overflow-wrap: anywhere;
+	min-width: 0;
+}
+
+.sv-pager {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--s-2);
+}
+
+/* Both grids scroll here, inside the card, in both directions. The height cap
+   keeps the query box reachable without scrolling past a thousand rows. */
+.sv-grid-wrap {
+	overflow: auto;
+	overscroll-behavior-x: contain;
+	max-height: 55vh;
+	-webkit-overflow-scrolling: touch;
+	border-top: 1px solid var(--border);
+}
+
+.sv-grid-wrap:empty {
+	border-top: 0;
+}
+
+.sv-grid {
+	border-collapse: collapse;
+	font-size: var(--fs-sm);
+	font-family: var(--font-mono);
+	/* Not width: 100% — the columns should size to their content and the
+	   container should scroll, which is what makes a 40-column table readable
+	   at all. */
+	min-width: 100%;
+}
+
+.sv-grid th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	text-align: left;
+	vertical-align: bottom;
+	background: var(--surface-2);
+	padding: var(--s-2) var(--s-3);
+	white-space: nowrap;
+	border-bottom: 1px solid var(--border-strong);
+}
+
+.sv-col {
+	font-family: var(--font);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text);
+}
+
+.sv-coltype {
+	margin-left: var(--s-2);
+	font-size: var(--fs-xs);
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.sv-pk {
+	margin-left: var(--s-2);
+	font-family: var(--font);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	padding: 0 0.35em;
+	border-radius: var(--radius-full);
+	border: 1px solid var(--accent-line);
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+
+.sv-grid td {
+	padding: var(--s-2) var(--s-3);
+	border-top: 1px solid var(--border);
+	vertical-align: top;
+	/* One line per cell: a row of wrapped paragraphs makes a grid unscannable,
+	   and the full value is on the cell's title. */
+	white-space: pre;
+	max-width: 28rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sv-grid tbody tr:hover td {
+	background: var(--surface-2);
+}
+
+.sv-cell--num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+/* NULL is not the string "NULL". In a database somebody actually owns, that
+   difference is the difference between a missing value and a bad import, so it
+   gets a different weight, a different case and a dotted rule under it — three
+   signals, none of them colour alone. */
+.sv-cell--null {
+	color: var(--text-muted);
+	font-style: italic;
+	text-decoration: underline dotted;
+	text-underline-offset: 0.2em;
+	opacity: 0.85;
+}
+
+.sv-cell--blob {
+	color: var(--warn);
+	font-size: var(--fs-xs);
+	white-space: nowrap;
+}
+
+/* Sits between a card head and its grid: an empty result, a truncation notice,
+   a table with no rows. */
+.sv-note-inline {
+	padding: var(--s-3) var(--s-5);
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+	background: var(--surface-2);
+	border-top: 1px solid var(--border);
+}
+
+/* ------------------------------------------------------------------ *
+ * Query box
+ * ------------------------------------------------------------------ */
+
+/* A plain textarea, monospace, resizable. No editor component: there is no
+   bundler here, and a syntax highlighter would be the single largest thing on
+   the page after SQLite itself. */
+.sv-sql {
+	min-height: 7rem;
+	font-family: var(--font-mono);
+	font-size: max(var(--fs-sm), 16px);
+	tab-size: 2;
+}
+
+.sv-footnote {
+	font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ *
+ * Narrow screens
+ * ------------------------------------------------------------------ */
+
+@media (max-width: 30rem) {
+	.sv-sources {
+		gap: var(--s-4);
+	}
+
+	.sv-grid-wrap {
+		max-height: 60vh;
+	}
+
+	.sv-grid td {
+		max-width: 14rem;
+	}
+
+	/* The pager wraps under the table name rather than squeezing both onto one
+	   line and truncating the name, which is the part you navigate by. */
+	.sv-panel-head {
+		align-items: flex-start;
+	}
+
+	.sv-pager {
+		width: 100%;
+		justify-content: space-between;
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * The live SQL console
+ * ------------------------------------------------------------------ */
+
+/* templates/sqlconsole.html loads this same stylesheet (see consoleBase in
+   tools.go), so its classes live here rather than in mux.css — same reason as
+   the viewer's: no other page in the gateway wants them. They are kept in
+   their own section because the two pages must never come to look alike. The
+   viewer is calm and the console is red, and that difference is the only thing
+   standing between "browse a copy" and "there is no undo".
+
+   Everything below is the console's markup, not the viewer's; the two share a
+   file and nothing else. */
+
+/* Louder than .alert--error, which reports something that already went wrong.
+   This one is a standing warning about what is about to. */
+.alert--danger {
+	background: var(--danger-soft);
+	border-color: var(--danger);
+	border-left-color: var(--danger);
+	color: var(--text);
+	font-size: var(--fs-base);
+}
+
+.card--danger {
+	border-color: var(--danger-line);
+	box-shadow: var(--shadow-2);
+}
+
+.card--danger::before {
+	content: "";
+	display: block;
+	height: 4px;
+	background: var(--danger);
+}
+
+.danger-title {
+	color: var(--danger);
+}
+
+.warn-list {
+	margin: 0;
+	padding-left: 1.15rem;
+	display: flex;
+	flex-direction: column;
+	gap: var(--s-3);
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+}
+
+.warn-list strong {
+	color: var(--text);
+}
+
+/* The sentence that has to be transcribed. Selectable and wrapping, but not
+   presented as a field, so it does not read as somewhere to type. */
+.phrase-source code {
+	display: block;
+	padding: var(--s-3) var(--s-4);
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	font-size: var(--fs-sm);
+	line-height: 1.6;
+	overflow-wrap: anywhere;
+	user-select: all;
+}
+
+.console-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: var(--s-3);
+}
+
+/* The database picker should not stretch to the width of the statement box —
+   it is the most consequential control on the page and a full-bleed select
+   reads as a layout element rather than a choice. */
+.field--inline {
+	min-width: 16rem;
+	max-width: var(--width-form);
+	flex: 1;
+}
+
+.sql-input {
+	min-height: 12rem;
+	font-family: var(--font-mono);
+	font-size: max(var(--fs-sm), 16px);
+	tab-size: 2;
+}
+
+.result-meta {
+	font-size: var(--fs-sm);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* The console renders server-side, so its grid is a plain table inside the
+   house .table-wrap scroller rather than the viewer's virtualised-ish one. */
+.data-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-family: var(--font-mono);
+	font-size: var(--fs-sm);
+}
+
+.data-table th {
+	position: sticky;
+	top: 0;
+	text-align: left;
+	background: var(--surface-2);
+	padding: var(--s-2) var(--s-3);
+	white-space: nowrap;
+	border-bottom: 1px solid var(--border-strong);
+	font-family: var(--font);
+	font-size: var(--fs-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.data-table td {
+	padding: var(--s-2) var(--s-3);
+	border-top: 1px solid var(--border);
+	vertical-align: top;
+	max-width: 28rem;
+	overflow-wrap: anywhere;
+}
+
+/* Same reasoning as .sv-cell--null on the viewer: NULL must never be mistaken
+   for the string "NULL". */
+.cell-null {
+	color: var(--text-muted);
+	font-style: italic;
+	text-decoration: underline dotted;
+	text-underline-offset: 0.2em;
+}

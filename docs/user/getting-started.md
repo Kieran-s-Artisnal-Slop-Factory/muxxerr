@@ -96,6 +96,26 @@ database takes on the server, along with three links:
   SQLite file. Safe to take at any time, including while the app is running.
 - **Remove** — takes the app off your dashboard. It does **not** delete
   anything: add the app again and your data comes back.
+- **Explore database** — opens the app's data in the SQLite viewer, described
+  below.
+
+## Looking inside your data
+
+**Tools → SQLite viewer** opens a *copy* of one of your databases and lets you
+browse the tables and run queries against it.
+
+The important word is copy. The whole thing runs inside your browser — the
+database is downloaded once and every query after that happens on your own
+machine. Nothing you type there can reach the server, so you can experiment
+freely: run an `UPDATE`, drop a table, see what happens. Reload the page and the
+copy is gone and your real data is exactly as it was.
+
+You can also drag in any `.db` file from your computer to poke at it, and export
+whatever you have loaded back out as a `.db` file or as SQL.
+
+This is the one page here that needs JavaScript, because it is running a real
+database engine in your browser. Without it, "Download data" on your dashboard
+gets you the same file to open in a tool of your choice.
 
 ## 5. Changing your password
 

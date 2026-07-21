@@ -6,7 +6,8 @@
     "signups_enabled": true,
     "secure_cookies": false,
     "session_ttl": "720h",
-    "allow_admin_impersonation": false
+    "allow_admin_impersonation": false,
+    "sql_console": true
   },
   "apps": [
     {

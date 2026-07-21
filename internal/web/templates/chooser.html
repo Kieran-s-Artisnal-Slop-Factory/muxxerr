@@ -73,6 +73,7 @@
 						*/}}
 						<div class="app-card__tools">
 							{{if .LogsURL}}<a class="link-quiet" href="{{.LogsURL}}">Logs</a>{{end}}
+							{{if .ExploreURL}}<a class="link-quiet" href="{{.ExploreURL}}">Explore database</a>{{end}}
 							<a class="link-quiet" href="/apps/{{.Name}}/export">Download data</a>
 							<form class="inline" method="post" action="/apps/{{.Name}}/remove"
 								data-confirm="Hide {{.Title}} from your dashboard? Your data stays on the server and comes back if you add it again.">

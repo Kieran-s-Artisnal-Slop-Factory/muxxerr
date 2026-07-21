@@ -46,6 +46,8 @@ var routedPostPaths = map[string]bool{
 	"/admin/users/{}/delete":      true,
 	"/admin/instances/{}/{}/stop": true,
 	"/admin/settings/signups":     true,
+	"/tools/sql/unlock":           true,
+	"/tools/sql/execute":          true,
 }
 
 func TestEveryFormActionIsRouted(t *testing.T) {

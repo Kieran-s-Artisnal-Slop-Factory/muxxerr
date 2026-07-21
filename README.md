@@ -63,6 +63,8 @@ while iterating. Both commands read the same `apps.json`.
 | `/login`, `/logout`, `/signup`, `/reset` | gateway auth |
 | `/account` | change your password, view sessions |
 | `/apps/<app>/logs` | the last 50 lines your instance wrote |
+| `/tools/sqlite` | browse a snapshot of a database, in your browser |
+| `/tools/sql` | run statements against a live database (opt-in) |
 | `/apps/<app>/export` | a consistent snapshot of your own database |
 | `/admin` | user management, exports, audit log (admins only) |
 | `/<username>/<app>/` | one user's instance of one app |
@@ -115,6 +117,8 @@ already covers.
 - [docs/dev/auth.md](docs/dev/auth.md) — hashing, the pepper, sessions,
   passphrases, throttling
 - [docs/dev/adding-an-app.md](docs/dev/adding-an-app.md) — adding to `apps.json`
+- [docs/dev/database-tools.md](docs/dev/database-tools.md) — the SQLite viewer and
+  the live SQL console, and why they are two pages
 - [docs/user/getting-started.md](docs/user/getting-started.md) — for the people
   using it
 - [docs/admin/operations.md](docs/admin/operations.md) — bootstrap, backups,
@@ -167,6 +171,24 @@ shared device safe, which is the case that actually happens. It does not make
 two people using one browser profile at the same time safe, and nothing inside
 this URL scheme can — that needs an origin per user, i.e. subdomains. See
 [docs/dev/architecture.md](docs/dev/architecture.md).
+
+## Database tools
+
+**Tools → SQLite viewer** loads a snapshot of one of your app databases — or a
+`.db` file you drag in — into SQLite compiled to WebAssembly, and runs your
+queries *in the browser*. Nothing typed there reaches the server, so there is no
+list of forbidden keywords to get wrong: the isolation is structural. Export the
+result back out as `.db` or as SQL.
+
+**Tools → SQL console** is the opposite, and is off unless `apps.json` sets
+`"sql_console": true`. It runs statements against the real file an app reads,
+with no undo and no automatic backup. Every visit makes you type the warning
+sentence, and the instance is stopped before anything runs so there is only one
+writer.
+
+They are separate pages on purpose. Put a "write mode" checkbox on one page and
+the safe operation starts carrying the dangerous one's warnings — which is how
+warnings stop being read. [docs/dev/database-tools.md](docs/dev/database-tools.md).
 
 ## The gateway's own UI
 

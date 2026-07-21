@@ -1,0 +1,195 @@
+{{/*
+	The live SQL console.
+
+	Two stages in one template. "locked" is the warning and the phrase field;
+	"unlocked" is the console itself. Every fresh navigation to this page comes
+	back as "locked" — the token that unlocks it exists only in the page you just
+	unlocked, so a bookmark, a back button, or a tab left open overnight all put
+	the warning in front of you again. That is the point rather than an
+	inconvenience: the risk here is not mistyping, it is forgetting which
+	database this tab was pointed at.
+
+	Everything works without JavaScript. The one script is a client-side check
+	that the phrase matches before the round trip, which is a courtesy — the
+	server checks it again and is the only opinion that counts.
+*/}}
+{{define "title"}}SQL console{{end}}
+
+{{define "content"}}
+<div class="wide stack">
+
+{{if eq .Stage "locked"}}
+
+	<div class="page-head">
+		<h1>Live SQL console</h1>
+		<p class="muted">
+			This runs statements against a real database &mdash; the file an app reads and
+			writes. It is not the <a href="/tools/sqlite">snapshot viewer</a>, which is a copy
+			in your browser and cannot affect anything.
+		</p>
+	</div>
+
+	<div class="card card--danger">
+		<div class="card__body stack">
+			<h2 class="danger-title">Read this before you continue</h2>
+			<ul class="warn-list">
+				<li><strong>There is no undo.</strong> A mistyped <code>DELETE</code> or
+					<code>DROP</code> takes effect immediately and permanently.</li>
+				<li><strong>There is no automatic backup.</strong> Nothing here snapshots the
+					database first. If you want one, take it from
+					<a href="/">your apps</a> &rarr; Download data, <em>before</em> you run anything.</li>
+				<li><strong>The app will be stopped.</strong> Its process is shut down before
+					your statements run, so there is only one writer. It starts again on the
+					next request.</li>
+				<li><strong>You can break the app, not just the data.</strong> These databases
+					have a schema the app expects. Changing it can stop the app loading at all.</li>
+			</ul>
+
+			<form method="post" action="/tools/sql/unlock" class="stack" id="unlock-form">
+				{{.Page.CSRFField}}
+				<input type="hidden" name="app" value="{{.App}}">
+
+				<div class="field">
+					<label for="phrase">Type this sentence to continue</label>
+					<p class="phrase-source"><code id="phrase-text">{{.Phrase}}</code></p>
+					<textarea id="phrase" name="phrase" rows="3" required
+						autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+						aria-describedby="phrase-help"></textarea>
+					<p class="hint" id="phrase-help">
+						Capitalisation matters. Extra spaces and line breaks do not.
+					</p>
+				</div>
+
+				<div class="row-actions">
+					<button class="btn btn--danger" type="submit">Unlock the console</button>
+					<a class="btn btn--ghost" href="/tools/sqlite">Use the safe viewer instead</a>
+				</div>
+			</form>
+		</div>
+	</div>
+
+{{else}}
+
+	<div class="page-head">
+		<h1>Live SQL console</h1>
+		<p class="muted">
+			Unlocked. Statements run against the real database and take effect immediately.
+		</p>
+	</div>
+
+	<p class="alert alert--danger" role="alert">
+		<strong>This is the live database.</strong> No undo, no backup, and the app is stopped
+		while your statements run.
+	</p>
+
+	{{with .SQLError}}<p class="alert alert--error" role="alert">{{.}}</p>{{end}}
+
+	<form method="post" action="/tools/sql/execute" class="stack">
+		{{.Page.CSRFField}}
+		<input type="hidden" name="token" value="{{.Token}}">
+
+		<div class="console-head">
+			<div class="field field--inline">
+				<label for="app">Database</label>
+				<select id="app" name="app" required>
+					<option value="">Choose a database&hellip;</option>
+					{{range .Apps}}
+						<option value="{{.Name}}" {{if eq .Name $.App}}selected{{end}}>{{.Title}} ({{.Size}})</option>
+					{{end}}
+				</select>
+			</div>
+			{{if .Running}}
+				<span class="status status--live"><span class="status__dot" aria-hidden="true"></span>Running &mdash; will be stopped</span>
+			{{end}}
+		</div>
+
+		{{if not .Apps}}
+			<div class="empty">
+				<p><strong>No databases to work on.</strong></p>
+				<p class="muted">Add an app from <a href="/">your apps</a> first.</p>
+			</div>
+		{{end}}
+
+		<div class="field">
+			<label for="sql">Statements</label>
+			<textarea id="sql" name="sql" class="sql-input" rows="10" spellcheck="false"
+				autocomplete="off" autocapitalize="off" autocorrect="off"
+				placeholder="UPDATE settings SET value = '1' WHERE key = 'onboarded';">{{.SQL}}</textarea>
+			<p class="hint">
+				Separate statements with semicolons. The last one that returns rows is shown below,
+				up to 500 of them. Trigger bodies containing <code>BEGIN &hellip; END</code> should
+				be run one at a time.
+			</p>
+		</div>
+
+		<div class="row-actions">
+			<button class="btn btn--danger" type="submit"
+				data-confirm="Run this against the live database? There is no undo.">Run against the live database</button>
+			<a class="btn btn--ghost" href="/tools/sqlite">Open the snapshot viewer</a>
+		</div>
+	</form>
+
+	{{with .Result}}
+		<section class="stack" aria-labelledby="result-heading">
+			<h2 class="section-title" id="result-heading">Result</h2>
+
+			<p class="result-meta">
+				{{.Statements}} statement{{if ne .Statements 1}}s{{end}} &middot;
+				{{.RowsAffected}} row{{if ne .RowsAffected 1}}s{{end}} changed &middot;
+				{{.ElapsedMS}} ms
+				{{if .Truncated}} &middot; <strong>showing the first 500 rows</strong>{{end}}
+			</p>
+
+			{{with .Notice}}<p class="alert alert--ok">{{.}}</p>{{end}}
+
+			{{if .Columns}}
+				<div class="table-wrap">
+					<table class="data-table">
+						<thead>
+							<tr>{{range .Columns}}<th scope="col">{{.}}</th>{{end}}</tr>
+						</thead>
+						<tbody>
+							{{range .Rows}}
+								<tr>{{range .}}<td>{{if eq . "∅"}}<span class="cell-null" title="NULL">NULL</span>{{else}}{{.}}{{end}}</td>{{end}}</tr>
+							{{end}}
+						</tbody>
+					</table>
+				</div>
+				{{if not .Rows}}<p class="muted">The query returned no rows.</p>{{end}}
+			{{else}}
+				<p class="muted">No result set &mdash; the statements returned no columns.</p>
+			{{end}}
+		</section>
+	{{end}}
+
+{{end}}
+
+<p><a class="link-quiet" href="/">&larr; Back to your apps</a></p>
+</div>
+
+{{if eq .Stage "locked"}}
+<script>
+(function () {
+	// Client-side echo of the server's check, so a typo is caught before a round
+	// trip rather than after one. The server checks again and is authoritative;
+	// with scripting off the button simply stays enabled and the server answers.
+	var form = document.getElementById("unlock-form");
+	var field = document.getElementById("phrase");
+	var target = document.getElementById("phrase-text");
+	if (!form || !field || !target) return;
+
+	var want = target.textContent.trim().replace(/\s+/g, " ");
+	var button = form.querySelector("button[type=submit]");
+
+	function normalise(v) { return v.trim().replace(/\s+/g, " "); }
+	function check() {
+		var ok = normalise(field.value) === want;
+		button.disabled = !ok;
+		field.setAttribute("aria-invalid", field.value.length > 0 && !ok ? "true" : "false");
+	}
+	field.addEventListener("input", check);
+	check();
+})();
+</script>
+{{end}}
+{{end}}

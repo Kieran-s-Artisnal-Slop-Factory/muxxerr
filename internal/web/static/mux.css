@@ -1453,3 +1453,88 @@ button.link-quiet {
 }
 
 .logline--err:nth-child(odd) { background: var(--danger-soft); }
+
+/* ------------------------------------------------------------------ *
+ * Nav dropdown (Tools)
+ *
+ * Built on <details>, so it opens on click and on Enter, closes on Escape,
+ * and is fully keyboard-reachable with no JavaScript. A scripted menu would
+ * have needed roving tabindex and aria-expanded plumbing to reach the same
+ * place, and would have left a dead control when the script failed.
+ * ------------------------------------------------------------------ */
+
+.menu {
+	position: relative;
+}
+
+.menu__summary {
+	cursor: pointer;
+	list-style: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+/* Both spellings: WebKit still uses the pseudo-element, everyone else honours
+   list-style on the summary itself. */
+.menu__summary::-webkit-details-marker { display: none; }
+
+.menu__summary::after {
+	content: "";
+	width: 0.35rem;
+	height: 0.35rem;
+	border-right: 1.5px solid currentColor;
+	border-bottom: 1.5px solid currentColor;
+	transform: translateY(-1px) rotate(45deg);
+	transition: transform 0.12s ease;
+}
+
+.menu[open] > .menu__summary::after {
+	transform: translateY(1px) rotate(-135deg);
+}
+
+.menu__panel {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 0.5rem);
+	z-index: 20;
+	min-width: 15rem;
+	display: flex;
+	flex-direction: column;
+	padding: var(--s-1);
+	background: var(--surface);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-2);
+}
+
+.menu__item {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	padding: var(--s-2) var(--s-3);
+	border-radius: var(--radius-sm);
+	color: var(--text);
+	text-decoration: none;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+	background: var(--surface-2);
+}
+
+.menu__item-title { font-weight: 600; font-size: var(--fs-sm); }
+.menu__item-desc  { color: var(--text-muted); font-size: var(--fs-xs); }
+
+.menu__item--danger .menu__item-title { color: var(--danger); }
+
+/* On a narrow screen the header wraps and an absolutely-positioned panel can
+   end up off-screen; let it sit in the flow instead. */
+@media (max-width: 34rem) {
+	.menu__panel {
+		position: static;
+		box-shadow: none;
+		min-width: 0;
+	}
+}

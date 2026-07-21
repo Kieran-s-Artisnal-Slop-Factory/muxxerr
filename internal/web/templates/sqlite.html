@@ -1,0 +1,215 @@
+{{/*
+	The SQLite snapshot viewer.
+
+	This is the one page in the gateway that genuinely cannot work without
+	JavaScript — it runs a SQLite build in a Web Worker — and the honest response
+	to that is not to hide the fact but to render the whole shell in HTML anyway
+	and say plainly what is missing. Someone with scripting off still gets the
+	headings, the explanation of what this is, and a pointer at the download link
+	that gets them the same file to open in a tool they already have.
+
+	Every element the module needs carries an id. The markup here is the contract;
+	static/sqliteviewer.js fills it in and skips anything it cannot find, so a
+	change on one side degrades to a missing control rather than a blank page.
+
+	The app list crosses into JS as a JSON block rather than as generated script
+	source. html/template will escape a value into a JS string correctly, but
+	assembling JS in a template is how you eventually get an app named
+	O'Brien's breaking the page.
+*/}}
+{{define "title"}}Snapshot viewer{{end}}
+
+{{define "content"}}
+{{/* .wide opts this page into the wide container; see layout.html. */}}
+<div class="stack wide" id="sv-drop">
+
+	<div class="page-head">
+		<h1>SQLite snapshot viewer</h1>
+		<p class="muted">
+			Open a copy of one of your app databases here in the browser: browse the tables,
+			run queries against it, export it. The database on the server is never touched.
+		</p>
+	</div>
+
+	{{/*
+		The one sentence this page exists to make unmissable. It is a .note rather
+		than an .alert because nothing has gone wrong — this is the standing state
+		of the page, and an alert that is always there stops being read.
+	*/}}
+	<p class="note sv-copy">
+		<strong>Everything on this page is a copy in your browser.</strong>
+		Queries you run here never reach the server, and any change you make to this copy
+		is thrown away when you reload. That is the point: you asked for a snapshot so that
+		nothing you type could reach the live app.
+	</p>
+
+	<noscript>
+		<div class="alert alert--error">
+			<strong>This page needs JavaScript.</strong>
+			It works by running SQLite itself inside your browser, which is what keeps your
+			queries away from the server — there is no server-side version of it to fall back on.
+			To get the same file without scripting, use the <strong>Download data</strong> link
+			under each app on <a href="/">your dashboard</a> and open the <code>.db</code> it gives
+			you in any SQLite tool.
+		</div>
+	</noscript>
+
+	{{/* Read by sqliteviewer.js. Marshalled by html/template, not hand-built. */}}
+	<script type="application/json" id="sv-config">{"apps": {{.Apps}}, "preselect": {{.PreselectApp}}}</script>
+
+	<div class="card">
+		<div class="card__head"><h2>Choose a database</h2></div>
+		<div class="card__body">
+			<div class="sv-sources">
+
+				<form class="sv-source" id="sv-app-form">
+					<h3 class="sv-source__title">One of your apps</h3>
+					{{if .Apps}}
+						<div class="field">
+							<label for="sv-app-select">App</label>
+							<select id="sv-app-select" name="app">
+								{{range .Apps}}
+									<option value="{{.Name}}"{{if eq .Name $.PreselectApp}} selected{{end}}>{{.Title}}</option>
+								{{end}}
+							</select>
+						</div>
+						<button class="btn btn--primary" type="submit">Load a snapshot</button>
+						<p class="hint">
+							Downloads a consistent copy of that app's database — the same file as
+							<em>Download data</em> on your dashboard — and opens it here.
+						</p>
+					{{else}}
+						<p class="hint">
+							You have not set up any apps yet. Add one from
+							<a href="/">your dashboard</a> and its database will be listed here.
+						</p>
+					{{end}}
+				</form>
+
+				<div class="sv-source">
+					<h3 class="sv-source__title">A file from this computer</h3>
+					<div class="field">
+						<label for="sv-file">SQLite file</label>
+						<input type="file" id="sv-file" accept=".db,.sqlite,.sqlite3,application/vnd.sqlite3,application/x-sqlite3">
+					</div>
+					<p class="hint">
+						Or drag a <code>.db</code> anywhere onto this page. It is read in your browser
+						and never uploaded.
+					</p>
+				</div>
+
+				<div class="sv-source">
+					<h3 class="sv-source__title">Nothing at all</h3>
+					<p class="hint">
+						Start with an empty database if you just want somewhere to try SQL out.
+					</p>
+					<button class="btn" type="button" id="sv-blank">New empty database</button>
+				</div>
+
+			</div>
+		</div>
+	</div>
+
+	<div class="alerts" aria-live="polite">
+		<p class="alert alert--error" id="sv-error" role="alert" hidden></p>
+	</div>
+
+	{{/*
+		Boot and download progress. Determinate for the snapshot download (we know
+		the size); indeterminate while the WebAssembly runtime starts, because the
+		loader owns that fetch and inventing a percentage for it would be a lie.
+	*/}}
+	<div class="sv-boot" id="sv-boot" hidden>
+		<p class="sv-boot__text" id="sv-boot-text">Starting SQLite…</p>
+		<div class="sv-bar sv-bar--indeterminate" id="sv-bar" role="progressbar"
+			aria-label="Loading" aria-valuemin="0" aria-valuemax="100">
+			<span class="sv-bar__fill" id="sv-bar-fill"></span>
+		</div>
+	</div>
+
+	<div class="empty" id="sv-empty">
+		<p><strong>No database open yet.</strong></p>
+		<p class="muted">Pick one above, drop a file on the page, or start from empty.</p>
+	</div>
+
+	<div class="sv-workspace" id="sv-workspace" hidden>
+
+		<div class="sv-bar-row">
+			<span class="status status--live"><span class="status__dot" aria-hidden="true"></span><span id="sv-source-label">Loaded</span></span>
+			<span class="sv-bar-row__spacer"></span>
+			<button class="btn btn--sm" type="button" id="sv-export-db" disabled>Export .db</button>
+			<button class="btn btn--sm" type="button" id="sv-export-sql" disabled>Export .sql</button>
+		</div>
+
+		<div class="sv-split">
+
+			<aside class="sv-rail" aria-label="Tables and views">
+				<h2 class="section-title">Tables</h2>
+				<p class="hint" id="sv-rail-empty" hidden>This database has no tables or views.</p>
+				<ul class="sv-rail__list" id="sv-rail-list"></ul>
+			</aside>
+
+			<div class="sv-main stack">
+
+				<section class="card" aria-label="Table browser">
+					<div class="card__head sv-panel-head">
+						<h2 id="sv-table-name">&nbsp;</h2>
+						<span class="sv-pager">
+							<span class="hint" id="sv-table-range"></span>
+							<button class="btn btn--sm" type="button" id="sv-prev" disabled>Previous</button>
+							<button class="btn btn--sm" type="button" id="sv-next" disabled>Next</button>
+						</span>
+					</div>
+					<p class="sv-note-inline" id="sv-browser-empty" hidden>No rows in this table.</p>
+					<div class="sv-grid-wrap" id="sv-table-grid" tabindex="0" role="region"
+						aria-label="Rows in the selected table"></div>
+				</section>
+
+				<section class="card" aria-label="Query">
+					<div class="card__head"><h2>Query</h2></div>
+					<div class="card__body stack">
+						<div class="field">
+							<label for="sv-sql">SQL &mdash; runs against the copy in this tab only</label>
+							<textarea id="sv-sql" class="sv-sql" rows="5" spellcheck="false"
+								autocapitalize="off" autocomplete="off"
+								placeholder="SELECT * FROM sqlite_schema;"></textarea>
+						</div>
+						<div class="actions">
+							<button class="btn btn--primary" type="button" id="sv-run">Run</button>
+							<button class="btn btn--danger btn--sm" type="button" id="sv-stop" hidden>Stop</button>
+							<span class="hint">Ctrl/&#8984;+Enter runs it.</span>
+							<span class="sv-bar-row__spacer"></span>
+							<span class="hint" id="sv-result-meta"></span>
+						</div>
+						<p class="alert alert--error" id="sv-query-error" role="alert" hidden></p>
+					</div>
+					<p class="sv-note-inline" id="sv-result-empty" hidden></p>
+					<div class="sv-grid-wrap" id="sv-result-grid" tabindex="0" role="region"
+						aria-label="Query results"></div>
+				</section>
+
+			</div>
+		</div>
+	</div>
+
+	<p class="hint sv-footnote">
+		<span id="sv-info"></span>
+		{{if .SQLConsole}}
+			&middot; Need to change the real data? The <a href="/tools/sql">live SQL console</a>
+			writes to the running database.
+		{{end}}
+	</p>
+
+	<p><a class="link-quiet" href="/">&larr; Back to your apps</a></p>
+</div>
+
+{{/*
+	A module, so it can `import` the worker URL relative to itself — which is
+	what lets the whole thing live under a content-addressed /_mux/static/<ver>/
+	path with no build step and no absolute URLs written into the JavaScript.
+	It is deferred by definition, so it runs after the markup above exists and
+	the ids it looks for are all present.
+*/}}
+<script type="module" id="sv-script" src="{{.Page.StaticURL}}/sqliteviewer.js"
+	data-page-size="50"></script>
+{{end}}

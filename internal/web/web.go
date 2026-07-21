@@ -76,6 +76,10 @@ type Server struct {
 	tmpl        map[string]*template.Template
 	siteName    string
 	resetTokens *resetTokenStore
+	// consoleTokens gates the live SQL console. Same mechanism as the password
+	// reset: short-lived, single-use, in memory. A gateway restart dropping
+	// every unlocked console is the correct failure.
+	consoleTokens *resetTokenStore
 	// icons maps an app name to the icon filename found in its build.
 	// Populated once at startup by resolveIcons.
 	icons map[string]string
@@ -89,10 +93,11 @@ type Server struct {
 func New(cfg *config.Config, st *store.Store, pepper auth.Pepper, sup *supervisor.Supervisor, exporter Exporter) (*Server, error) {
 	s := &Server{
 		cfg: cfg, store: st, pepper: pepper, sup: sup, exporter: exporter,
-		tmpl:        map[string]*template.Template{},
-		siteName:    "Multiplexer",
-		resetTokens: newResetTokenStore(),
-		assetVer:    computeAssetVersion(),
+		tmpl:          map[string]*template.Template{},
+		siteName:      "Multiplexer",
+		resetTokens:   newResetTokenStore(),
+		consoleTokens: newResetTokenStore(),
+		assetVer:      computeAssetVersion(),
 	}
 	pages, err := fs.Glob(templateFS, "templates/*.html")
 	if err != nil {
@@ -111,7 +116,7 @@ func New(cfg *config.Config, st *store.Store, pepper auth.Pepper, sup *superviso
 		}
 		s.tmpl[name] = t
 	}
-	for _, required := range []string{"login", "signup", "passphrase", "reset", "chooser", "account", "admin", "error", "logs"} {
+	for _, required := range []string{"login", "signup", "passphrase", "reset", "chooser", "account", "admin", "error", "logs", "sqlite", "sqlconsole"} {
 		if _, ok := s.tmpl[required]; !ok {
 			return nil, fmt.Errorf("missing template %s.html", required)
 		}
@@ -144,16 +149,25 @@ type PageData struct {
 	Error     string
 	CSRFField template.HTML
 	StaticURL string
+	// SQLConsole mirrors site.sql_console so the nav can hide the live console
+	// entirely rather than offering a link to a 404.
+	SQLConsole bool
+	// ExtraCSS names additional stylesheets in the static directory, loaded
+	// after mux.css. The tool pages carry a lot of one-off layout (a query
+	// grid, a table browser) that no other page wants; keeping it in its own
+	// file means the login page does not pay for it.
+	ExtraCSS []string
 }
 
 func (s *Server) page(w http.ResponseWriter, r *http.Request, title string) PageData {
 	return PageData{
-		Title:     title,
-		SiteName:  s.siteName,
-		User:      s.UserFor(r),
-		Flash:     takeFlash(w, r),
-		CSRFField: s.csrfField(w, r),
-		StaticURL: staticPrefix + "/" + s.assetVer,
+		Title:      title,
+		SiteName:   s.siteName,
+		User:       s.UserFor(r),
+		Flash:      takeFlash(w, r),
+		CSRFField:  s.csrfField(w, r),
+		StaticURL:  staticPrefix + "/" + s.assetVer,
+		SQLConsole: s.cfg.Site.SQLConsole,
 	}
 }
 
@@ -499,6 +513,14 @@ func (s *Server) StaticHandler() http.Handler {
 			// Unversioned: let the browser keep it briefly but check back, so
 			// an upgrade is picked up on the next visit rather than in an hour.
 			w.Header().Set("Cache-Control", "public, max-age=300, must-revalidate")
+		}
+		// WebAssembly.instantiateStreaming refuses anything that is not
+		// application/wasm, and it refuses it with a message about MIME types
+		// that reads like a network error. Setting it here rather than relying
+		// on the platform mime table means the SQLite viewer cannot break
+		// because a machine's registry says .wasm is something else.
+		if strings.HasSuffix(r.URL.Path, ".wasm") {
+			w.Header().Set("Content-Type", "application/wasm")
 		}
 		fileServer.ServeHTTP(w, r)
 	}))

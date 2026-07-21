@@ -62,6 +62,17 @@ type Site struct {
 	// Off by default: admins can already export any database, and silently
 	// browsing as someone else is a bigger power than this needs.
 	AllowAdminImpersonation bool `json:"allow_admin_impersonation"`
+
+	// SQLConsole enables the live SQL console — arbitrary statements against a
+	// real instance database, with no undo. Off by default and deliberately
+	// not toggleable from the admin UI: on a server with open sign-ups this
+	// would otherwise hand a data-destruction tool to every new account, and
+	// the decision to accept that belongs in a file the operator edits, not
+	// behind a checkbox somebody can reach by accident.
+	//
+	// The read-only snapshot viewer at /tools/sqlite is always available and
+	// is what most people actually want; this is for the times it is not.
+	SQLConsole bool `json:"sql_console"`
 }
 
 // App declares one multiplexable application.
@@ -284,6 +295,7 @@ var reservedNames = map[string]bool{
 	"admin": true, "api": true, "assets": true, "static": true,
 	"healthz": true, "favicon.ico": true, "robots.txt": true,
 	"account": true, "apps": true, "_mux": true, "sync": true,
+	"tools": true,
 }
 
 // Reserved reports whether a URL segment is owned by the gateway.

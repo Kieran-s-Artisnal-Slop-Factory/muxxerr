@@ -55,6 +55,14 @@ func Routes(s *Server, gw *gateway.Gateway, cfg *config.Config) http.Handler {
 	mux.HandleFunc("GET /apps/{app}/export", s.HandleExportOwn)
 	mux.HandleFunc("GET /apps/{app}/logs", s.HandleLogs)
 
+	// --- database tools. The viewer is always available and is read-only by
+	// construction (it works on a snapshot in the browser); the console writes
+	// to a live database and is off unless apps.json enables it.
+	mux.HandleFunc("GET /tools/sqlite", s.HandleSQLiteViewer)
+	mux.HandleFunc("GET /tools/sql", s.HandleSQLConsole)
+	mux.HandleFunc("POST /tools/sql/unlock", s.HandleSQLConsoleUnlock)
+	mux.HandleFunc("POST /tools/sql/execute", s.HandleSQLConsoleExecute)
+
 	// --- administration
 	mux.HandleFunc("GET /admin", s.HandleAdmin)
 	mux.HandleFunc("POST /admin/users/{id}/disable", s.HandleAdminSetDisabled(true))

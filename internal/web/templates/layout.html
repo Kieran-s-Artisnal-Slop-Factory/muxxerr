@@ -34,6 +34,8 @@
 <meta name="referrer" content="same-origin">
 <title>{{template "title" .}} &middot; {{.Page.SiteName}}</title>
 <link rel="stylesheet" href="{{.Page.StaticURL}}/mux.css">
+{{range .Page.ExtraCSS}}<link rel="stylesheet" href="{{$.Page.StaticURL}}/{{.}}">
+{{end}}
 {{/* Served from the embedded static dir like everything else; no /favicon.ico
      round trip to a file we do not have. */}}
 {{/*
@@ -73,6 +75,27 @@
 		<nav class="nav" aria-label="Main">
 			{{if .Page.User}}
 				<a class="nav__link" href="/">Apps</a>
+				{{/*
+					A <details> rather than a scripted menu: it opens on click and on
+					Enter, closes on Escape, and is reachable by keyboard with no
+					JavaScript at all. The script at the bottom of the page only adds
+					click-outside-to-close, which is a nicety and not a requirement.
+				*/}}
+				<details class="menu" data-menu>
+					<summary class="nav__link menu__summary">Tools</summary>
+					<div class="menu__panel" role="group" aria-label="Database tools">
+						<a class="menu__item" href="/tools/sqlite">
+							<span class="menu__item-title">SQLite viewer</span>
+							<span class="menu__item-desc">Browse a snapshot in your browser</span>
+						</a>
+						{{if .Page.SQLConsole}}
+							<a class="menu__item menu__item--danger" href="/tools/sql">
+								<span class="menu__item-title">SQL console</span>
+								<span class="menu__item-desc">Run statements against a live database</span>
+							</a>
+						{{end}}
+					</div>
+				</details>
 				<a class="nav__link" href="/account">Account</a>
 				{{if .Page.User.IsAdmin}}<a class="nav__link" href="/admin">Admin</a>{{end}}
 				<span class="nav__user" title="Signed in as {{.Page.User.Username}}">{{.Page.User.Username}}</span>
@@ -171,6 +194,23 @@
 		paint();
 		slot.appendChild(btn);
 	}
+
+	// Close any open nav menu when the click lands elsewhere, or on Escape.
+	// <details> handles open/close and keyboard on its own; this only stops a
+	// menu being left hanging open behind the rest of the page.
+	document.addEventListener("click", function (ev) {
+		document.querySelectorAll("details[data-menu][open]").forEach(function (d) {
+			if (!d.contains(ev.target)) { d.open = false; }
+		});
+	});
+	document.addEventListener("keydown", function (ev) {
+		if (ev.key !== "Escape") return;
+		document.querySelectorAll("details[data-menu][open]").forEach(function (d) {
+			d.open = false;
+			var s = d.querySelector("summary");
+			if (s) s.focus();
+		});
+	});
 
 	// Confirmation for the handful of forms that destroy something. This is a
 	// courtesy, not a control: the server must still treat every one of these
