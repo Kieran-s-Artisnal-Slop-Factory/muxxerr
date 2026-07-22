@@ -55,14 +55,14 @@
 								{{else}}
 									<span class="status"><span class="status__dot" aria-hidden="true"></span>Sleeping</span>
 								{{end}}
+								{{/*
+									Build badge: the app's version and/or commit, from the
+									build.json muxbuild wrote. Only rendered when there is
+									something to show, so an app built without git or a VERSION
+									file leaves the card exactly as it was.
+								*/}}
+								{{if .Build}}<span class="build-badge" title="{{.BuildTitle}}">{{.Build}}</span>{{end}}
 							</span>
-							{{/*
-								Build badge: the app's version and/or commit, from the
-								build.json muxbuild wrote. Only rendered when there is
-								something to show, so an app built without git or a VERSION
-								file leaves the card exactly as it was.
-							*/}}
-							{{if .Build}}<span class="build-badge" title="{{.BuildTitle}}">{{.Build}}</span>{{end}}
 						</div>
 						<p class="app-card__desc">{{.Description}}</p>
 						<dl class="app-card__meta">
