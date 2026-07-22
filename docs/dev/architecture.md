@@ -3,9 +3,14 @@
 Muxxerr exists to answer one question: *how do you put a login in front
 of an app that was designed, deliberately and correctly, to never have one?*
 
-Every app it serves — [workoutt](../../../workoutt),
-[readerr](../../../readerr), anything from
-[local-sync-template](../../../local-sync-template) — is local-first. The
+> Just want to run it? [docs/admin/deployment.md](../admin/deployment.md) is the
+> operator's start ("build once with `muxbuild`, run `mux`, open `:8080`"), and
+> [docs/user/getting-started.md](../user/getting-started.md) is for the people
+> using it. This page is the *why*.
+
+Every app it serves — [workoutt](../../apps/workoutt),
+[readerr](../../apps/readerr), anything from `local-sync-template` (the
+generator, not vendored here) — is local-first. The
 browser owns the data; the Go server is a sync target and a static file host.
 There are no users, no sessions, and no row in any table that says who wrote it.
 Adding all of that to each app is weeks of work per app, duplicated, and it
@@ -30,7 +35,7 @@ flowchart TB
         Session --> Router --> Guard --> Super
         Super --> Rewrite
     end
-    subgraph Children["child processes (127.0.0.1, ephemeral ports)"]
+    subgraph Children["child processes (bind 0.0.0.0:ephemeral, gateway dials 127.0.0.1)"]
         direction TB
         A["readerr<br/>DB_PATH=data/instances/alice/readerr/readerr.db"]
         B["readerr<br/>DB_PATH=data/instances/bob/readerr/readerr.db"]
@@ -43,6 +48,12 @@ flowchart TB
     Gateway --- MuxDB[("data/mux.db<br/>users, sessions, instances")]
     Gateway --- Dist[("runtime/apps/&lt;app&gt;/dist<br/>one build, all users")]
 ```
+
+> **Security note the diagram used to get wrong:** the gateway *dials*
+> `127.0.0.1:<port>`, but the child itself binds `0.0.0.0` today — both backends
+> do `addr := ":" + envOr("PORT", ...)` and the supervisor sets no `BIND_ADDR`.
+> So from a source deployment each unauthenticated child is reachable on the LAN.
+> See [docs/improvements/security.md §C2](../improvements/security.md#c2).
 
 Three invariants hold the design together:
 
@@ -151,14 +162,18 @@ configurable but should never be set to something ordinary.
 
 One consequence worth internalising: **rewriting is a response-body
 transformation on a proxied stream**, so it applies only to content types that
-can contain the sentinel (HTML, JS, JSON manifests), and API responses are
-explicitly exempt — see `APIPrefixes` below. An app that embeds its base in,
-say, a compiled CSS `url()` would need that type added.
+can contain the sentinel. `rewritableType()` in
+[internal/gateway/rewrite.go](../../internal/gateway/rewrite.go) covers HTML,
+CSS, plain text, JavaScript, JSON, the web manifest, SVG and XML — so a base
+baked into a CSS `url()` *is* handled. API responses are explicitly exempt (see
+`APIPrefixes` below). A base embedded in a genuinely opaque type — a binary
+asset, a font — is what would need the set extended.
 
 ## Request lifecycle
 
-Take `GET /alice/readerr/sync/pull?since=412`, with a valid session cookie for
-`alice`.
+In one line: **session → route → guard → start child → proxy → rewrite →
+idle-stop.** The long version, taking `GET /alice/readerr/sync/pull?since=412`
+with a valid session cookie for `alice`:
 
 1. **Session.** The cookie token is SHA-256'd and looked up
    (`store.SessionUser`), which joins on `credential_gen` and `is_disabled` in
@@ -167,10 +182,12 @@ Take `GET /alice/readerr/sync/pull?since=412`, with a valid session cookie for
    Details in [auth.md](auth.md).
 2. **Route.** The first segment is a username, the second an app name. Both are
    checked against `config.Reserved` at *config load* and *signup* time rather
-   than per request, so this is a map lookup. The user must own the instance
-   (`store.HasInstance`); owning it is what adding the app from the chooser
-   does. `alice` requesting `/bob/readerr/` is a 404 — not a 403, which would
-   confirm bob exists.
+   than per request, so this is a map lookup. `alice` requesting `/bob/readerr/`
+   is rejected by an ownership check *before* any instance lookup — a 403 (`This
+   app belongs to another user.`), unless `allow_admin_impersonation` is on and
+   the caller is an admin (`gateway.go`). Owning an app you have not added from
+   the chooser yet (`store.HasInstance` is false) redirects you to the chooser;
+   the 404 path is only reachable under admin impersonation.
 3. **Guard.** If the instance-relative path matches a `GuardedRoute` — readerr's
    `GET /title?url=` is the only one configured — the named query parameter is
    parsed as a URL and rejected under the `block-private` policy if it resolves
@@ -188,8 +205,9 @@ Take `GET /alice/readerr/sync/pull?since=412`, with a valid session cookie for
    `HealthPath` (`/healthz`) until the child answers. ~111 ms cold.
 5. **Proxy.** The `/alice/readerr` prefix is stripped and `/sync/pull?since=412`
    is forwarded to `127.0.0.1:<port>` — the app's routes are root-anchored, so
-   this is exactly the URL it expects. `store.TouchInstance` records the use,
-   which is what the idle timer reads.
+   this is exactly the URL it expects. The supervisor's in-memory `inst.Touch()`
+   updates the last-used time the idle janitor reads; `store.TouchInstance`
+   separately persists `last_used_at` for the admin overview.
 6. **Response.** The path matches an `APIPrefix` (`/sync/`), so it is marked
    no-store and **exempted from rewriting** — an API response must never have
    its body rewritten, both because it cannot contain the sentinel and because
@@ -206,23 +224,27 @@ Take `GET /alice/readerr/sync/pull?since=412`, with a valid session cookie for
 
 ### Where root-absolute requests go
 
-Step 2 assumes the first path segment is a username. The apps break that
-assumption: `getSyncUrl()` returns `''` when unset, so the client fetches
-`/sync/pull`, with no user or app in it at all.
+Step 2 assumes the first path segment is a username. An app whose client calls
+its API root-absolutely breaks that: `getSyncUrl()` returning `''` means the
+client fetches `/sync/pull`, with no user or app in it at all.
 
-`internal/gateway/shim.go` recovers the context from `Referer`: a root-absolute
-request whose path matches a configured `APIPrefix` and whose referring page is
-under `/alice/readerr/` is re-attributed to that instance and rejoins the
-lifecycle at step 3. This is the single reason muxxerr works against
-unmodified checkouts, and it is why `api_prefixes` in `apps.json` must list
-every API route the app has — `/sync/`, `/healthz`, `/backup`, plus readerr's
-`/title` and `/dbsize` and workoutt's `/push/`.
+**The vendored apps no longer do this.** `getSyncUrl()` in both readerr and
+workoutt now derives its base from `import.meta.env.BASE_URL` — the sentinel base,
+rewritten per user at serve time — so the client sends `/alice/readerr/sync/pull`
+directly and routes normally at step 2. (This was patch 01; it is applied
+upstream. See [patches/README.md](../../patches/README.md).)
 
-It is a heuristic. `Referer` is absent under `Referrer-Policy: no-referrer`,
-stripped by privacy extensions, and unreliable from worker contexts. When it is
-missing the request 404s. [patches/01-sync-base.md](../../patches/01-sync-base.md)
-is the one-line upstream change that makes the client send the right URL in the
-first place; it is offered, not applied.
+`internal/gateway/shim.go` remains as the **fallback for an unpatched fork**: a
+root-absolute request whose path matches a configured `APIPrefix`, carrying a
+same-origin `Referer` under `/alice/readerr/`, is re-attributed to that instance
+and rejoins the lifecycle at step 3. It is why `api_prefixes` in `apps.json` must
+list every API route the app has — `/sync/`, `/healthz`, `/backup`, plus
+readerr's `/title` and `/dbsize` and workoutt's `/push/`.
+
+It is a heuristic, and only load-bearing for unpatched apps: `Referer` is absent
+under `Referrer-Policy: no-referrer`, stripped by privacy extensions, and
+unreliable from worker contexts, and when it is missing the request 404s rather
+than guess wrong.
 
 ## Layout
 
@@ -237,16 +259,20 @@ muxxerr/
 │   ├── store/             gateway database: users, sessions, instances, audit,
 │   │                      settings, throttle (+ schema.sql)
 │   ├── auth/              Argon2id + pepper, passphrases, session tokens
-│   ├── gateway/           router, proxy, rewrite.go, shim.go, guard.go
-│   └── supervisor/        child process lifecycle, health, idle stop
+│   ├── gateway/           router, proxy, rewrite.go, shim.go, guard.go, export.go
+│   ├── supervisor/        child process lifecycle, health, idle stop
+│   └── web/               HTTP handlers: login/signup/reset, admin, the SQL
+│                          console + SQLite viewer, logs, templates + static
+│                          assets. Provides the Authenticator the gateway uses.
 ├── runtime/               build output (gitignored)
 │   └── apps/<name>/{dist,<name>}
 ├── data/                  gitignored
 │   ├── mux.db             identity
 │   ├── pepper.key         0600, back up separately — losing it is terminal
 │   └── instances/<user>/<app>/<app>.db
-├── docs/
-└── patches/               optional upstream changes, not applied
+├── docs/                  (+ docs/improvements/ — known security/perf gaps)
+└── patches/               upstream changes; 01-03 applied to the vendored apps,
+                           04 (§4.4) and 05 still optional/pending
 ```
 
 `internal/config` is the contract between the two commands: `muxbuild` uses

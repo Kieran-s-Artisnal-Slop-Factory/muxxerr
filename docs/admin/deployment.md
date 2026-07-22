@@ -66,6 +66,83 @@ arrives empty — but without it you get each app's branch tip rather than the
 commits this repository pins. The first build is slow: `npm ci` plus a full
 Astro build per app, plus a Go compile per app, plus the gateway.
 
+## Building the image, and how the multi-arch cross-compile works
+
+You only need this if you are forking and publishing your own image, or you want
+to understand what CI does. Most people pull the prebuilt one and never build.
+
+**The build is `muxbuild`, not a stack of `RUN` lines.** A single-app image
+(readerr's, workoutt's) can be a `go build` plus an `npm run build`. This one
+cannot: [`muxbuild`](../../cmd/muxbuild) reads [apps.json](../../apps.json),
+compiles each backend, builds each frontend with `--base=/__MUX__`, and then
+**refuses to publish a `dist` in which that sentinel is missing** — a failure
+that is otherwise invisible until a user opens the app and every asset 404s. So
+the [Dockerfile](../../Dockerfile) runs `muxbuild` rather than paraphrasing it.
+
+### The multi-arch story (amd64 + arm64) without emulating the heavy work
+
+The published image is built for `linux/amd64` **and** `linux/arm64` (servers and
+Raspberry Pi / Apple-silicon hosts) by `docker buildx`. CI
+([.github/workflows/docker.yaml](../../.github/workflows/docker.yaml)) sets up
+QEMU with `docker/setup-qemu-action` and Buildx with `docker/setup-buildx-action`,
+then does one `buildx --platform linux/amd64,linux/arm64` build.
+
+The interesting part is what QEMU does *not* do. Emulating a full Astro build and
+a Go compile under QEMU for the non-native architecture would turn a two-minute
+build into a very long one. The Dockerfile is written to avoid that entirely:
+
+- **The builder stage runs natively.** It starts
+  `FROM --platform=$BUILDPLATFORM golang:1.25-alpine`, so every tool in it — node,
+  npm, go, `muxbuild` itself — runs on the build host's own architecture. No
+  emulation.
+- **Frontends are architecture-independent.** node emits HTML, CSS and JS; the
+  bytes are the same whichever CPU you target. There is nothing to cross-compile.
+- **The `mux` gateway is a real cross-compile.**
+  `CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build` — pure Go, no cgo,
+  genuinely built for the target from the native host.
+- **The app backends cross-compile as a side effect of running `muxbuild`
+  natively.** `muxbuild` is a *program*, so it has to execute on the build
+  platform. It shells out to `go build` per app with `cmd.Env = os.Environ()` +
+  `CGO_ENABLED=0`, so a `GOARCH` set on the `RUN` line is inherited by those child
+  builds. `modernc.org/sqlite` is pure Go, so there is no cgo to trip over.
+
+QEMU is therefore needed only for the **thin final stage** — `FROM alpine:3.20`
+plus `apk add curl ca-certificates tzdata` — which, for the non-native platform,
+runs its handful of package installs under emulation. That is cheap; emulating
+the compile would not be.
+
+**The build verifies itself.** Because the `GOARCH`-passthrough leans on an
+implementation detail rather than a documented flag, the stage asserts the
+architecture of each compiled backend with `go version -m` afterward. If the
+passthrough ever broke, the image would still build and then every child process
+would die with `exec format error` the first time someone opened the app on an
+arm64 host — so the Dockerfile checks the artifact instead of trusting the build,
+the same spirit as `muxbuild`'s own sentinel check.
+
+The final image is `alpine`, not `scratch`, on purpose: the gateway spawns child
+processes, and those children need `/tmp`, a CA bundle (readerr's `/title` fetches
+HTTPS) and `zoneinfo` (workoutt builds reminders in local time) — none of which
+`scratch` has.
+
+### Building it yourself
+
+```bash
+# Single architecture, for the machine you're on — no QEMU, fastest:
+docker compose -f docker-compose.build.yml up --build
+
+# Multi-arch, the way CI does it. Register QEMU once per host first:
+docker run --privileged --rm tonistiigi/binfmt --install all
+docker buildx create --use --name muxbuilder      # once
+docker buildx build --platform linux/amd64,linux/arm64 -t youruser/muxxerr:dev .
+```
+
+For a **reproducible** image, check the submodules out on the host before
+building (`git submodule update --init --recursive`). If `apps/readerr` or
+`apps/workoutt` arrive empty in the build context — e.g. a clone without
+`--recurse-submodules`, since `.dockerignore` drops `.git` — the Dockerfile falls
+back to cloning each app's URL from `.gitmodules` at its **branch tip**, which
+builds and runs but is not the commit this repo pins.
+
 ## Changing the port
 
 `MUX_PORT` in `.env` is the host side of the port mapping. The container always
@@ -351,11 +428,14 @@ server {
         proxy_pass http://127.0.0.1:8080;
 
         # $host, NOT the default $proxy_host. The gateway's root-absolute
-        # compatibility shim compares the Referer's host against r.Host to
-        # decide which tenant a request like /sync/pull belongs to (see
-        # internal/gateway/shim.go). Rewrite Host and the two never match, the
-        # shim declines every request, and the apps' sync calls stop resolving
-        # — with no error anywhere that names the cause.
+        # compatibility shim recovers a request's tenant from the *path* of its
+        # Referer, but only if the Referer's *host* matches the request Host —
+        # a same-origin guard (see internal/gateway/shim.go). Rewrite Host to
+        # $proxy_host and that guard fails: the shim declines every request and
+        # an unpatched app's sync calls stop resolving, with no error naming the
+        # cause. The vendored apps send a prefixed /alice/readerr/sync/pull
+        # directly and no longer depend on the shim, but preserving Host costs
+        # nothing and keeps any unpatched fork working.
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -434,6 +514,63 @@ Sources for those two limits:
 [Error 524](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/error-524/),
 [upload size limits](https://community.cloudflare.com/t/max-upload-size/630925).
 
+### Pangolin (self-hosted tunnel + SSO)
+
+[Pangolin](https://docs.pangolin.net) is a self-hosted alternative to Cloudflare
+Tunnel: a WireGuard-tunnelled reverse proxy (built on Traefik) with its own
+identity layer, so you can expose a home server *and* put single-sign-on in front
+of it. Because it is Traefik underneath, everything the [Traefik
+sketch](#traefik-sketch) says applies — preserve `Host`, no short read timeout, no
+small body cap.
+
+The identity layer is where Pangolin needs muxxerr-specific care.
+
+> [!IMPORTANT]
+> **Gate the root, not the sub-pages.** muxxerr is *already* a multi-user auth
+> gateway. If you switch on Pangolin SSO for the whole resource, put it in front
+> of `localhost:8080` (the login / chooser landing) but leave the per-app
+> sub-pages — `/<user>/<app>/…` — **un-gated at the Pangolin layer.** You already
+> have to be logged in to muxxerr to reach them, so Pangolin adds nothing there,
+> and gating them actively breaks two things.
+
+Why the sub-pages must bypass Pangolin's SSO:
+
+- **The PWA manifest and icons are fetched with credentials *omitted*.** muxxerr
+  deliberately serves `manifest.webmanifest`, `favicon.ico` and `icon.svg` under
+  `/<user>/<app>/` **without a session** for exactly this reason
+  ([operations.md](operations.md#serving-the-apps-pwa-assets),
+  [internal/gateway/public.go](../../internal/gateway/public.go)). Put Pangolin
+  SSO in front of them and the credential-less fetch gets an SSO login redirect
+  instead of the file, so the app can never be installed.
+- **Sync and the app shell are called by JavaScript and the service worker,
+  expecting JSON or the app itself.** An SSO redirect returns an HTML login page;
+  the app's `fetch` gets HTML where it wanted `/sync/pull` JSON and reports a
+  confusing sync error, or the service worker caches the login page. The muxxerr
+  session cookie already authorises these requests.
+
+How to express it in Pangolin, using its own primitives (Resources → **Rules**,
+evaluated in ascending **priority** order):
+
+- Add a **Path Match** rule with action **ACCEPT** (which bypasses *all* Pangolin
+  auth — SSO, password, tokens) for the app sub-paths and PWA assets, e.g.
+  `/*/*/*` and the asset filenames. muxxerr's own session is the access control
+  there.
+- Leave the resource's default as **Pass to Auth** (SSO) so the bare root — the
+  login, sign-up and chooser surface at `/` — still sits behind Pangolin.
+
+The result: a stranger hitting `/` meets Pangolin's SSO; a legitimate user's
+bookmarked `/<you>/<app>/` deep link and installed PWA work with just the muxxerr
+cookie; and an unauthenticated deep-link visitor is bounced by muxxerr's own
+guard to `/login`, which *is* behind SSO. (Pangolin's `ACCEPT` path rules have
+had sharp edges across versions — see fosrl/pangolin issues #2551 and #1679 — so
+after setting this up, confirm from a logged-out browser that the manifest loads
+and sync works before you rely on it.)
+
+If instead you want Pangolin's SSO to *replace* muxxerr's login entirely, that is
+a different design (one identity, one user) that muxxerr is not built for — it has
+no header-based auth trust and would still show every SSO user the multi-user
+chooser. Gate the root and let muxxerr own its own sessions.
+
 ### After you change the proxy
 
 ```bash
@@ -443,6 +580,21 @@ curl -fsSI https://mux.example.com/healthz          # 200, and check the scheme
 Then log in through the proxy and confirm in devtools that the session cookie
 has **Secure** set. If it does not, `secure_cookies` is still `false` — and the
 login will appear to work, which is what makes it easy to miss.
+
+### When the proxy misbehaves
+
+Every symptom here maps to one of the four things above, or to a config mismatch.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Login accepts the password, returns to the login form | `secure_cookies: true` over plain HTTP (cookie not stored), or `false` behind HTTPS (cookie sent insecure) | match `secure_cookies` to whether the browser sees HTTPS (§1) |
+| First `/sync/pull` on a big library → 504 | proxy read timeout in seconds | give the upstream minutes, or remove it (§3) |
+| First `/sync/push` → 413 | proxy body cap below 256 MiB (nginx default 1 MB; Cloudflare 100 MB) | raise it to ≥256 MiB (§4) |
+| Cloudflare → 524 on first sync | origin sends nothing for ~100 s | Enterprise-only knob; expect it on very large first syncs |
+| One throttle locks out everyone | proxy on a bridge network, its IP not trusted | set `trusted_proxies`, or share the gateway's netns (§2) |
+| Unpatched app's sync 404s only through the proxy | `Host` rewritten to `$proxy_host` | preserve `Host` (`$host`) — the shim's same-origin guard needs it |
+| PWA won't install / SSO redirect on manifest | an outer SSO layer gating the sub-pages | gate only the root (see Pangolin above) |
+| `manifest unknown` on `docker compose up` | `MUX_IMAGE` case/owner mismatch | set `MUX_IMAGE` (GHCR is lowercase) |
 
 ## Backups
 

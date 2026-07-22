@@ -127,16 +127,19 @@ Adding an app — including a static, backendless one — is
 
 ## Compatibility with unmodified apps
 
-The apps' clients call their API root-absolutely (`fetch('/sync/pull')`),
-because `getSyncUrl()` falls back to `''`. The gateway handles this with a
-`Referer`-based shim: a root-absolute request to a known API path, sent from a
-page under `/alice/readerr/`, is re-attributed to that instance. It works, and
-it is why you can point this at an unmodified checkout.
+An app whose client calls its API root-absolutely (`fetch('/sync/pull')`,
+because `getSyncUrl()` falls back to `''`) has no user or app in the request. The
+gateway handles that with a `Referer`-based shim: a root-absolute request to a
+known API path, sent from a page under `/alice/readerr/`, is re-attributed to
+that instance. It works, and it is why you can point this at an *unmodified*
+checkout.
 
-It is also a guess, and it fails when the browser withholds `Referer`.
-[patches/](patches/) contains the small upstream changes that remove the need
-for it, written up but **not applied**, with an honest account of what the shim
-already covers.
+The vendored apps are no longer unmodified: the sync-URL and service-worker fixes
+that used to live in [patches/](patches/) (01–03) are **applied upstream now**,
+so readerr and workoutt send the prefixed URL directly and the shim is only a
+fallback for forks that lack the fix. What remains in `patches/` is one generator
+convenience (04 §4.4) and the backend hardening set (05) — see
+[patches/README.md](patches/README.md).
 
 ## Documentation
 
@@ -146,15 +149,19 @@ already covers.
 - [docs/dev/adding-an-app.md](docs/dev/adding-an-app.md) — adding to `apps.json`
 - [docs/dev/app-sources.md](docs/dev/app-sources.md) — submodules, local paths
   and `git+` URLs, and how to update them
-- [docs/admin/deployment.md](docs/admin/deployment.md) — Docker, and putting
-  HTTPS in front of it
+- [docs/admin/deployment.md](docs/admin/deployment.md) — Docker, the multi-arch
+  image build (and its QEMU approach), and putting HTTPS in front of it —
+  Caddy, nginx, Traefik, Cloudflare Tunnel and Pangolin
 - [docs/dev/database-tools.md](docs/dev/database-tools.md) — the SQLite viewer and
   the live SQL console, and why they are two pages
 - [docs/user/getting-started.md](docs/user/getting-started.md) — for the people
   using it
 - [docs/admin/operations.md](docs/admin/operations.md) — bootstrap, backups,
   exports, security caveats
-- [patches/README.md](patches/README.md) — the optional upstream changes
+- [docs/improvements/](docs/improvements/) — the honest, evidence-backed list of
+  known security and performance gaps, ranked, with fixes
+- [patches/README.md](patches/README.md) — upstream app changes; 01–03 are
+  applied, 04 §4.4 and 05 remain
 
 ## What this is not
 
@@ -179,9 +186,15 @@ the process is alive) opt out of even that.
 **Not hardened for the open internet.** It ships plain HTTP with
 `secure_cookies: false` by default because the expected deployment is a LAN or
 a Tailscale network. Put it behind TLS and flip that flag before exposing it.
-The child processes still bind loopback only, and readerr's `/title` endpoint is
-SSRF-guarded by the gateway — but the apps behind it were written with "no auth,
-LAN posture" in their header comments and that has not stopped being true.
+readerr's `/title` endpoint is SSRF-guarded by the gateway, but the apps behind
+it were written with "no auth, LAN posture" in their header comments and that has
+not stopped being true — and the child backends currently bind *all* interfaces,
+not just loopback, so a from-source deployment leaves each unauthenticated app
+reachable on the LAN. Two shipped defaults also want a second look before you
+expose this: the live SQL console (`sql_console: true`) and open sign-ups. The
+full list, with severities and fixes, is in
+[docs/improvements/](docs/improvements/) — **read it before putting this on a
+network you do not control.**
 
 **Not a backup system.** `/backup` gives you a database file; nothing schedules
 it, rotates it, or takes it off the machine. See

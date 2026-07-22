@@ -17,6 +17,13 @@ the pepper too, and can read every instance database directly), a malicious
 child process (see "What this is not" in the [README](../../README.md)), or a
 shared browser profile (covered in [operations.md](../admin/operations.md)).
 
+One thing this front door does **not** cover, worth stating here because it is
+easy to assume otherwise: the app backends behind it do no authentication of
+their own and currently listen on all interfaces, so from a from-source
+deployment they are reachable — unauthenticated — on the LAN, sidestepping every
+protection on this page. See
+[docs/improvements/security.md §C2](../improvements/security.md#c2).
+
 ## Password hashing: Argon2id
 
 [`internal/auth/password.go`](../../internal/auth/password.go):

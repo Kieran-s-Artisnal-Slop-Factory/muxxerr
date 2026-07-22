@@ -62,7 +62,7 @@ Exports come back out of the browser as a `.db` file or as a SQL dump.
 
 ## The console
 
-Off unless `apps.json` says so:
+Off unless `apps.json` says so (then restart the gateway):
 
 ```json
 { "site": { "sql_console": true } }
@@ -72,6 +72,19 @@ Deliberately not a toggle in the admin UI. On a server with open sign-ups, an
 admin checkbox is one misclick away from handing every account a tool that can
 drop a table; putting it in a file the operator edits makes it a decision rather
 than an accident.
+
+> [!WARNING]
+> **The console is reachable by *any* signed-in user, not just admins, and its
+> connection is not confined to the one database it opened.** SQLite's
+> `ATTACH DATABASE` lets a statement reach any file the gateway process can — so
+> a non-admin can `ATTACH '…/mux.db'` to grant themselves admin, or attach
+> another tenant's database to read it. With the shipped defaults
+> (`sql_console: true` *and* `signups_enabled: true`) that is reachable by anyone
+> who can sign up. **Set `sql_console: false` on any server where you do not
+> trust every account.** Tracked as
+> [docs/improvements/security.md §C1](../improvements/security.md#c1); the "no
+> statement filtering" stance below is sound *for the caller's own database* but
+> does not address this cross-database escape.
 
 Three things guard it, each for a different failure:
 

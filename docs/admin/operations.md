@@ -78,14 +78,17 @@ Anything a user can do to their own account, they should do themselves — see
 
 ## Exporting a user's database
 
-`/admin` → the user → **Export** on an app. The gateway starts the instance if
-it is stopped, proxies its `backup_path` (`GET /backup`), and streams back a
-SQLite file.
+`/admin` → the user → **Export** on an app. The gateway locates the instance's
+database on disk and produces a **consistent snapshot with `VACUUM INTO`**
+([internal/gateway/export.go](../../internal/gateway/export.go)) — read-only,
+transactionally consistent, and working whether or not the instance is running.
+It does **not** start the instance and does **not** go through the app's own
+`/backup`. The same path backs the users' own "Download data" link.
 
-`/backup` is the app's own endpoint, so the file is exactly what that app would
-hand its own user — importable back into a standalone install, readable with
-`sqlite3`, and containing everything the server knows about that user for that
-app.
+The result is an ordinary SQLite file — importable back into a standalone
+install, readable with `sqlite3`, containing everything the server knows about
+that user for that app — and, because it is a `VACUUM INTO` snapshot, also
+compacted and free of any torn-backup risk.
 
 You can also just take the file:
 
@@ -99,15 +102,17 @@ missing the last few minutes or, worse, be internally inconsistent. Either stop
 the instance first (`/admin` shows what is running), or copy `.db`, `.db-wal`
 and `.db-shm` together, or use the `/backup` endpoint, which is what it is for.
 
-Be aware of a real caveat on the endpoint itself: today's `/backup` in both apps
-is `PRAGMA wal_checkpoint(TRUNCATE)` followed by `http.ServeFile`, which
-releases every lock before the transfer begins. A write landing mid-download
-produces a file that is the right length and internally torn. In practice this
-needs concurrent activity to trigger — but "in practice it usually works" is not
-what you want from a backup.
+One caveat, and it is about a *different* path: the app's **own** `/backup`
+endpoint — reachable through the proxy at `/<user>/<app>/backup`, and what the
+app's in-frontend backup button calls — is not the safe one described above.
+Today's `/backup` in both apps is `PRAGMA wal_checkpoint(TRUNCATE)` followed by
+`http.ServeFile`, which releases every lock before the transfer begins; a write
+landing mid-download produces a file that is the right length and internally
+torn. Admin **Export** and users' **Download data** sidestep this entirely (they
+use `VACUUM INTO`, above) — but if you or a user rely on the app's own `/backup`,
 [patches/05-hardening.md](../../patches/05-hardening.md) §5.4 replaces it with
-`VACUUM INTO`, which snapshots transactionally. If you are relying on `/backup`
-for anything you care about, apply that patch.
+`VACUUM INTO`, and [docs/improvements/security.md §H5](../improvements/security.md#h5)
+tracks it. Verify anything you keep.
 
 Verify any backup you intend to trust:
 
@@ -174,8 +179,8 @@ sources. Do not include it; it is the large directory.
   the new binary. Children are not hot-swapped.
 - **Watch the logs.** They are structured (`slog`), so grep by field. The ones
   worth alerting on: repeated instance start failures, guard blocks
-  (`guard: blocked private target`) which mean someone is probing `/title`, and
-  throttle lockouts on a single username.
+  (`blocked guarded request`, with `user`/`app`/`path`/`reason` fields) which
+  mean someone is probing `/title`, and throttle lockouts on a single username.
 - **Disk.** Each instance is a SQLite file that only grows. `VACUUM` per
   instance if one gets large; `/backup` under the `VACUUM INTO` patch compacts
   as a side effect.
@@ -228,6 +233,21 @@ username that does not exist, so this cannot be used to enumerate accounts.
 ## Security caveats
 
 These are the things you should say out loud before giving anyone the address.
+The full, evidence-backed list — with severities and fixes — is in
+[docs/improvements/](../improvements/); the highlights are here.
+
+### The live SQL console is on by default — turn it off with open sign-ups
+
+[apps.json](../../apps.json) ships `"sql_console": true`. The console
+([database-tools.md](../dev/database-tools.md)) runs arbitrary SQL against a
+database, and while it only *names* the caller's own instance, SQLite's
+`ATTACH DATABASE` lets any user reach `mux.db` and every other tenant's file on
+disk — i.e. escalate to admin and read everyone's data. Combined with the
+default `signups_enabled: true`, that is reachable by anyone who can sign up. On
+any server where you do not personally trust every account, set
+`"sql_console": false` and restart. This is finding
+[C1](../improvements/security.md#c1), and it is the single most important thing
+on this page.
 
 ### Shared browsers are the weak point
 
@@ -255,8 +275,8 @@ repeating.
 Related, smaller: the service-worker cache is also per origin, so co-hosted apps
 share it. That cache holds only the static shell and fingerprinted assets —
 identical for every user, no data — so it is a performance problem rather than a
-privacy one. See
-[patches/03-sw-cache-isolation.md](../../patches/03-sw-cache-isolation.md).
+privacy one, and the apps now isolate their cache keys by prefix upstream
+(`readerr-v3` / `workoutt-v6`), so they no longer evict each other.
 
 ### The `/title` SSRF guard
 
@@ -289,22 +309,33 @@ redirectors to internal hosts are outside what a pre-flight check on the
 supplied URL can catch. It raises the bar substantially; it does not make the
 endpoint safe to expose to the public internet.
 
-### Children bind loopback only — with a caveat
+### Children currently bind all interfaces, and have no auth
 
-Each child listens on `127.0.0.1:<ephemeral>` and the gateway dials it directly.
-Nothing outside the host can reach a child, which matters a great deal because
-**the children have no authentication at all** — they are the original
-single-user, no-auth, permissive-CORS servers. Anyone who could reach one
-directly would have full read/write on that user's database with no session and
-no username.
+The children have no authentication at all — they are the original single-user,
+no-auth, permissive-CORS servers. Anyone who can reach one directly has full
+read/write on that user's database with no session and no username. So *where*
+they listen is load-bearing, and today it is wrong: both app binaries do
+`addr := ":" + envOr("PORT", "8080")`, which binds **all interfaces**
+(`0.0.0.0`), not loopback. The supervisor picks a loopback free port and only
+ever dials `127.0.0.1` itself, but it does **not** set `BIND_ADDR` — there is no
+`BIND_ADDR` handling anywhere in the gateway — so the child binds `0.0.0.0`
+regardless.
 
-The caveat: today's app binaries do `addr := ":" + envOr("PORT", "8080")`, which
-binds *all* interfaces. The supervisor sets `BIND_ADDR=127.0.0.1` in the child's
-environment, but the shipped apps do not read it —
-[patches/05-hardening.md](../../patches/05-hardening.md) §5.1 is the one-line
-change that makes them. Until that patch is applied, **a host firewall is the
-thing actually enforcing this**, so make sure the ephemeral port range is not
-open on the machine's external interfaces.
+What that means depends on how you run it:
+
+- **From source** (`go run ./cmd/mux`): each child is reachable on the LAN on its
+  ephemeral port. **A host firewall is the only thing enforcing isolation** —
+  make sure the ephemeral port range is not open on external interfaces.
+- **Default `docker compose up`**: the ephemeral ports are inside the container's
+  network namespace and are not published (only `8080` is), so they are not
+  reachable from the host or LAN — but a sibling container on the same Docker
+  network can reach them, and `network_mode: host`/`service:mux` removes that
+  containment.
+
+The fix is [patches/05-hardening.md](../../patches/05-hardening.md) §5.1 (child
+defaults to `127.0.0.1`) plus a one-line supervisor change to set
+`BIND_ADDR=127.0.0.1`. Tracked as
+[docs/improvements/security.md §C2](../improvements/security.md#c2).
 
 ### Not a boundary against the apps themselves
 
@@ -344,7 +375,7 @@ users, and check the audit log.
 | Symptom | Where to look |
 |---|---|
 | Gateway will not start, error names a config field | `apps.json` — parsed with `DisallowUnknownFields`; the error names the key |
-| "instance failed to become ready" | the child's stderr in the gateway log; then `health_path` in `apps.json` |
+| "instance failed to start" | the child's stderr in the gateway log; then `health_path` in `apps.json` |
 | One user's app 404s on sync | `api_prefixes` for that app, and the `Referer` shim — see [adding-an-app.md](../dev/adding-an-app.md) |
 | Everyone locked out after a restore | you restored `mux.db` without the matching `pepper.key`. Restore the right pepper; there is no other fix |
 | workoutt reminders stopped | `always_on: true` **and** `idle_timeout: "0s"` must both be set |

@@ -116,10 +116,12 @@ while trying to work out which build broke something. Pin a tag if you care.
 Notes:
 
 - The checkout under `runtime/sources/` is a **build input, not a working
-  copy.** Every build does `git reset --hard` and `git clean -fdx` on it
-  (`node_modules` is preserved, because reinstalling it every build is minutes
-  for nothing). Edits there are discarded without warning.
-- Clones are shallow (`--depth 1`).
+  copy.** Every build *after the first* does `git reset --hard` and
+  `git clean -fdx` on it (`node_modules` is preserved, because reinstalling it
+  every build is minutes for nothing). Edits there are discarded without warning.
+- Clones are shallow (`--depth 1`) — except a commit-SHA pin (`#a1b2c3d`), which
+  a shallow clone cannot resolve, so it full-clones the default branch and then
+  shallow-fetches the one commit.
 - `git` is only required when at least one app actually uses a `git+` source;
   submodules and local paths need nothing.
 - A URL containing credentials is **rejected at config-load time**. They would

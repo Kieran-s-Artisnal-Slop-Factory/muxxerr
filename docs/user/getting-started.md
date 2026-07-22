@@ -4,13 +4,18 @@ This is a shared front door for a handful of small apps. You sign in once, pick
 which apps you want, and each one is yours alone — your own workout log, your
 own reading list, nobody else's data mixed in with it.
 
+> **In 30 seconds:** create an account → **write down the six-word passphrase it
+> shows you once** (it is your only way back in if you forget your password) →
+> add the apps you want → use them. On a shared computer, use a private window.
+> The rest of this page is the detail.
+
 You need the address someone gave you. It usually looks like
 `http://something.local:8080` or a Tailscale address. It is normally *not* on
 the public internet, so if it does not load, check you are on the right network.
 
 ## 1. Sign up
 
-Open the address and choose **Sign up**.
+Open the address and choose **Create an account**.
 
 - **Username** becomes part of every URL you use: `/alice/readerr/`. Pick
   something short and lowercase. A few names are taken by the system (`admin`,
@@ -80,18 +85,19 @@ Worth knowing:
   will offer "Install" or "Add to Home Screen". Do this per app.
 - **Bookmark the app itself**, not the chooser. `/<your-name>/readerr/` goes
   straight there.
-- **The first load after a while is slightly slow.** Apps you have not used
-  recently are shut down to save memory and start again on demand. It takes
-  about a tenth of a second; you will mostly not notice.
+- **The first load after a while is slightly slow.** Some apps you have not used
+  recently are shut down to save memory and start again on demand (apps that do
+  background work, like workout reminders, stay running). A restart takes about a
+  tenth of a second; you will mostly not notice.
 
 Each app on your dashboard shows when you added it and how much space its
-database takes on the server, along with three links:
+database takes on the server, along with these links:
 
 - **Logs** — the last 50 lines your instance wrote. If an app is misbehaving,
   look here before asking anyone: a failed sync or a startup problem usually
-  says so in plain words. These are kept in memory only, so they are cleared
-  whenever the server restarts, and they go back a few hundred lines at most.
-  They are for answering "why did that just fail", not for keeping records.
+  says so in plain words. These are kept in memory only (the server keeps up to
+  about 200 lines and shows you 50), so they are cleared whenever the server
+  restarts. They are for answering "why did that just fail", not for records.
 - **Download data** — a consistent snapshot of that app's database, as a single
   SQLite file. Safe to take at any time, including while the app is running.
 - **Remove** — takes the app off your dashboard. It does **not** delete
@@ -117,6 +123,11 @@ This is the one page here that needs JavaScript, because it is running a real
 database engine in your browser. Without it, "Download data" on your dashboard
 gets you the same file to open in a tool of your choice.
 
+Your server may also show a **SQL console** in the Tools menu. That one is the
+opposite of the viewer: it runs against your *live* database, on the server, with
+no undo. Leave it alone unless you know exactly what you are doing — the viewer
+above is the safe way to look around.
+
 ## 5. Changing your password
 
 **Account** → change password. You need your current password.
@@ -129,8 +140,8 @@ Your recovery passphrase does not change when your password does.
 
 ## 6. If you forget your password
 
-Go to **Sign in** → **Forgot password**. You will be asked for your username and
-your six-word recovery passphrase, then for a new password.
+On the sign-in page choose **Forgot your password?**. You will be asked for your
+username and your six-word recovery passphrase, then for a new password.
 
 The passphrase is forgiving about how you type it: capitals do not matter, and
 spaces work as well as dashes. `Meadow Cobalt JIGSAW hornet fresco lantern` is
@@ -141,7 +152,10 @@ and the wait doubles each time. This is deliberate and there is no way around it
 — wait it out, or go find the passphrase.
 
 Once the reset succeeds you are signed out of every device, same as a normal
-password change.
+password change. **You are also shown a brand-new six-word passphrase** — your
+old one stops working the moment you use it to reset, so save the new one exactly
+the way you saved the first (see step 2). This is the one time the passphrase
+changes; an ordinary password change (step 5) leaves it alone.
 
 **If you have lost the passphrase too**, an administrator can reset your account
 manually. Your app data is untouched by this.
@@ -160,8 +174,10 @@ family or public machine, use a private window or your own browser profile.
 **Signing out does not delete anything.** Your data stays on the server and in
 your browser. Sign back in and it is all there.
 
-**Removing an app removes the data.** That one is real, and the confirmation
-dialog is not being dramatic.
+**Removing an app does *not* delete its data.** "Remove" just takes the app off
+your dashboard; your database stays on the server, and adding the app again
+brings it all back. The confirmation dialog is only making sure you meant to
+tidy up, not warning you about losing anything.
 
 **Nobody can read your data through the apps** — every user gets a genuinely
 separate copy. The person running the server can, though: they have the files.

@@ -2,8 +2,12 @@
 
 **Applies to:** `workoutt/backend`, `readerr/backend`, and the generator's
 `emitGoMain.ts` / `emitGoDb.ts`
-**Status:** not applied. **Entirely optional**, and unlike patches 01-03 nothing
-here is required for muxxerr to work.
+**Status:** not applied. This is the only backend patch that still matters — the
+sync-URL and service-worker patches (01–03) are already merged upstream.
+**Mostly optional hardening, with one exception:** §5.1 (bind loopback) is a
+live security fix, not hygiene — see
+[docs/improvements/security.md §C2](../docs/improvements/security.md#c2). The
+other five items are robustness; take any subset.
 
 These backends were written for a stated posture: *"Single-user, self-hosted, no
 auth"* (`readerr/backend/main.go` line 3), permissive CORS, LAN only. Every
