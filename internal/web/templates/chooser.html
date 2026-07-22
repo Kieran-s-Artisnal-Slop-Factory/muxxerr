@@ -49,11 +49,20 @@
 								<img class="app-card__icon" src="{{.IconURL}}" alt="" width="28" height="28" loading="lazy">
 							{{end}}
 							<h3 class="app-card__title">{{.Title}}</h3>
-							{{if .Running}}
-								<span class="status status--live"><span class="status__dot" aria-hidden="true"></span>Running</span>
-							{{else}}
-								<span class="status"><span class="status__dot" aria-hidden="true"></span>Sleeping</span>
-							{{end}}
+							<span class="app-card__details">
+								{{if .Running}}
+									<span class="status status--live"><span class="status__dot" aria-hidden="true"></span>Running</span>
+								{{else}}
+									<span class="status"><span class="status__dot" aria-hidden="true"></span>Sleeping</span>
+								{{end}}
+							</span>
+							{{/*
+								Build badge: the app's version and/or commit, from the
+								build.json muxbuild wrote. Only rendered when there is
+								something to show, so an app built without git or a VERSION
+								file leaves the card exactly as it was.
+							*/}}
+							{{if .Build}}<span class="build-badge" title="{{.BuildTitle}}">{{.Build}}</span>{{end}}
 						</div>
 						<p class="app-card__desc">{{.Description}}</p>
 						<dl class="app-card__meta">
@@ -74,6 +83,12 @@
 						<div class="app-card__tools">
 							{{if .LogsURL}}<a class="link-quiet" href="{{.LogsURL}}">Logs</a>{{end}}
 							{{if .ExploreURL}}<a class="link-quiet" href="{{.ExploreURL}}">Explore database</a>{{end}}
+							{{/*
+								Release notes: the app's CHANGELOG.md, rendered to HTML at
+								build time and opened in a <dialog>. Only present when the app
+								ships a CHANGELOG.md, so the row is unchanged otherwise.
+							*/}}
+							{{if .Changelog}}<button type="button" class="link-quiet" data-open-dialog="notes-{{.Name}}" aria-haspopup="dialog">Release notes</button>{{end}}
 							<a class="link-quiet" href="/apps/{{.Name}}/export">Download data</a>
 							<form class="inline" method="post" action="/apps/{{.Name}}/remove"
 								data-confirm="Hide {{.Title}} from your dashboard? Your data stays on the server and comes back if you add it again.">
@@ -81,6 +96,15 @@
 								<button class="link-quiet link-quiet--danger" type="submit">Remove<span class="sr-only"> {{.Title}}</span></button>
 							</form>
 						</div>
+						{{if .Changelog}}
+							<dialog class="changelog-dialog" id="notes-{{.Name}}" aria-labelledby="notes-{{.Name}}-title">
+								<div class="changelog-dialog__head">
+									<h2 class="changelog-dialog__title" id="notes-{{.Name}}-title">{{.Title}} &mdash; release notes</h2>
+									<form method="dialog"><button class="btn btn--ghost btn--sm btn--icon" aria-label="Close release notes">&times;</button></form>
+								</div>
+								<div class="changelog">{{.Changelog}}</div>
+							</dialog>
+						{{end}}
 					</li>
 				{{end}}
 			</ul>
@@ -103,13 +127,23 @@
 				{{range .Available}}
 					<li class="add-item">
 						<div class="add-item__text">
-							<h3 class="add-item__title">{{.Title}}</h3>
+							<h3 class="add-item__title">{{.Title}}{{if .Build}} <span class="build-badge" title="{{.BuildTitle}}">{{.Build}}</span>{{end}}</h3>
 							<p class="add-item__desc">{{.Description}}</p>
+							{{if .Changelog}}<button type="button" class="link-quiet add-item__notes" data-open-dialog="notes-{{.Name}}" aria-haspopup="dialog">Release notes</button>{{end}}
 						</div>
 						<form method="post" action="/apps/{{.Name}}/install">
 							{{$.Page.CSRFField}}
 							<button class="btn btn--sm" type="submit">Add<span class="sr-only"> {{.Title}}</span></button>
 						</form>
+						{{if .Changelog}}
+							<dialog class="changelog-dialog" id="notes-{{.Name}}" aria-labelledby="notes-{{.Name}}-title">
+								<div class="changelog-dialog__head">
+									<h2 class="changelog-dialog__title" id="notes-{{.Name}}-title">{{.Title}} &mdash; release notes</h2>
+									<form method="dialog"><button class="btn btn--ghost btn--sm btn--icon" aria-label="Close release notes">&times;</button></form>
+								</div>
+								<div class="changelog">{{.Changelog}}</div>
+							</dialog>
+						{{end}}
 					</li>
 				{{end}}
 			</ul>
@@ -117,4 +151,30 @@
 		</section>
 	{{end}}
 </div>
+
+{{/*
+	Release-notes modals. Progressive enhancement: without JavaScript the buttons
+	simply do nothing (release notes are a nicety, never a critical path), which
+	is why they are <button>s that only act when this wires them up. Opening uses
+	the native <dialog> showModal(), so Escape-to-close and focus trapping come
+	for free; the close button is a <form method="dialog">, which needs no script
+	at all.
+*/}}
+<script>
+(function () {
+	document.querySelectorAll("[data-open-dialog]").forEach(function (btn) {
+		btn.addEventListener("click", function () {
+			var d = document.getElementById(btn.getAttribute("data-open-dialog"));
+			if (d && typeof d.showModal === "function") { d.showModal(); }
+		});
+	});
+	// A click on the backdrop (i.e. on the dialog element itself, outside its
+	// content box) closes it, matching what people expect of a modal.
+	document.querySelectorAll("dialog.changelog-dialog").forEach(function (d) {
+		d.addEventListener("click", function (ev) {
+			if (ev.target === d) { d.close(); }
+		});
+	});
+})();
+</script>
 {{end}}

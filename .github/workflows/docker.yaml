@@ -50,6 +50,15 @@ jobs:
           # commits.
           submodules: recursive
 
+      # Record each app's commit into a COMMIT file inside its source tree.
+      # .dockerignore drops every .git, so muxbuild cannot read the commit from
+      # git inside the image; it falls back to this file (see cmd/muxbuild/
+      # buildinfo.go), which is a plain file and survives into the build context.
+      # This is what puts a commit on each app's dashboard badge in the published
+      # image. The gateway's own commit goes in via the MUX_COMMIT build-arg below.
+      - name: Stamp app commits
+        run: git submodule foreach --quiet 'git rev-parse HEAD > "$toplevel/$sm_path/COMMIT"'
+
       # QEMU + Buildx enable multi-arch builds (amd64 for servers, arm64 for
       # Raspberry Pi / Apple-silicon hosts). The Dockerfile cross-compiles both
       # the gateway and every app backend, and the Astro output is
@@ -91,6 +100,10 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Stamps the gateway's build commit into the startup splash and log;
+          # the version itself comes from the embedded internal/version/VERSION.
+          build-args: |
+            MUX_COMMIT=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false # smaller manifest; flip on if you want SLSA attestations

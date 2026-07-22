@@ -2,6 +2,7 @@
 package web
 
 import (
+	"html/template"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -27,12 +28,22 @@ type installedApp struct {
 	// ExploreURL opens this app's database in the snapshot viewer. Only set
 	// for apps that have a database to explore.
 	ExploreURL string
+	// Build and BuildTitle are the version/commit badge and its hover tooltip,
+	// from the build.json muxbuild wrote. Empty Build means no badge is shown.
+	Build      string
+	BuildTitle string
+	// Changelog is the app's CHANGELOG.md rendered to HTML (safe, escaped at
+	// build time). Empty means the app has no changelog and no button is shown.
+	Changelog template.HTML
 }
 
 type availableApp struct {
 	Name        string
 	Title       string
 	Description string
+	Build       string
+	BuildTitle  string
+	Changelog   template.HTML
 }
 
 type chooserView struct {
@@ -100,14 +111,21 @@ func (s *Server) HandleRoot(w http.ResponseWriter, r *http.Request) {
 		if icon := s.appIcon(app.Name); icon != "" {
 			card.IconURL = base + icon
 		}
+		if b := s.appBuild(app.Name); !b.Empty() {
+			card.Build, card.BuildTitle = b.Badge(), b.Tooltip()
+		}
+		card.Changelog = s.appChangelog(app.Name)
 		v.Installed = append(v.Installed, card)
 	}
 	for i := range s.cfg.Apps {
 		a := &s.cfg.Apps[i]
 		if !have[a.Name] {
-			v.Available = append(v.Available, availableApp{
-				Name: a.Name, Title: a.Title, Description: a.Description,
-			})
+			item := availableApp{Name: a.Name, Title: a.Title, Description: a.Description}
+			if b := s.appBuild(a.Name); !b.Empty() {
+				item.Build, item.BuildTitle = b.Badge(), b.Tooltip()
+			}
+			item.Changelog = s.appChangelog(a.Name)
+			v.Available = append(v.Available, item)
 		}
 	}
 

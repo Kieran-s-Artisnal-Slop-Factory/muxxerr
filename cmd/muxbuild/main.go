@@ -47,6 +47,7 @@ import (
 	"time"
 
 	"muxxerr/internal/config"
+	"muxxerr/internal/version"
 )
 
 // scanLimit caps how much of a dist file we are willing to read when looking
@@ -246,10 +247,12 @@ type task struct {
 	buf *bytes.Buffer
 	out io.Writer
 
-	binSize int64
-	dist    distStats
-	elapsed time.Duration
-	err     error
+	binSize      int64
+	dist         distStats
+	buildInfo    version.AppBuild
+	hasChangelog bool
+	elapsed      time.Duration
+	err          error
 }
 
 func (t *task) build(ctx context.Context, tc *toolchain) {
@@ -266,6 +269,10 @@ func (t *task) build(ctx context.Context, tc *toolchain) {
 			return
 		}
 	}
+	// Reached only on success (both steps above return early on error), so the
+	// metadata we write always describes artifacts that were actually produced.
+	t.writeBuildInfo(ctx)
+	t.writeChangelog()
 }
 
 // buildBackend compiles the app's Go module to <runtime>/apps/<name>/<name>.
@@ -571,7 +578,7 @@ func selectApps(cfg *config.Config, only stringList) ([]*config.App, error) {
 
 func printSummary(w io.Writer, tasks []*task, total time.Duration) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "\nAPP\tKIND\tBINARY\tDIST FILES\tDIST SIZE\tPLACEHOLDER\tTIME\tSTATUS")
+	fmt.Fprintln(tw, "\nAPP\tKIND\tBINARY\tDIST FILES\tDIST SIZE\tPLACEHOLDER\tBUILD\tTIME\tSTATUS")
 	for _, t := range tasks {
 		bin := "-"
 		if t.binSize > 0 {
@@ -598,8 +605,12 @@ func printSummary(w io.Writer, tasks []*task, total time.Duration) {
 		if t.err != nil {
 			status = "FAILED"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			t.app.Name, t.app.Kind, bin, files, size, ph,
+		build := "-"
+		if b := t.buildInfo.Badge(); b != "" {
+			build = b
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			t.app.Name, t.app.Kind, bin, files, size, ph, build,
 			t.elapsed.Round(time.Millisecond), status)
 	}
 	tw.Flush()

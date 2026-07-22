@@ -349,9 +349,15 @@ func (c *Config) BackendSrc(a *App) string {
 	return filepath.Join(c.SourceDir(a), a.BackendDir)
 }
 
+// AppRuntimeDir is where muxbuild puts everything it produces for one app: the
+// built frontend (dist/), the compiled backend, and the build.json metadata.
+func (c *Config) AppRuntimeDir(a *App) string {
+	return filepath.Join(c.abs(c.Site.RuntimeDir), "apps", a.Name)
+}
+
 // DistDir is where muxbuild puts the app's built frontend.
 func (c *Config) DistDir(a *App) string {
-	return filepath.Join(c.abs(c.Site.RuntimeDir), "apps", a.Name, "dist")
+	return filepath.Join(c.AppRuntimeDir(a), "dist")
 }
 
 // BinaryPath is where muxbuild puts the app's compiled backend.
@@ -360,7 +366,19 @@ func (c *Config) BinaryPath(a *App) string {
 	if isWindows {
 		name += ".exe"
 	}
-	return filepath.Join(c.abs(c.Site.RuntimeDir), "apps", a.Name, name)
+	return filepath.Join(c.AppRuntimeDir(a), name)
+}
+
+// AppBuildPath is the per-app build metadata (version + commit) that muxbuild
+// writes and the dashboard reads. See internal/version.AppBuild.
+func (c *Config) AppBuildPath(a *App) string {
+	return filepath.Join(c.AppRuntimeDir(a), "build.json")
+}
+
+// AppChangelogPath is the app's CHANGELOG.md rendered to HTML by muxbuild, shown
+// in a modal from the dashboard. Absent when the app has no CHANGELOG.md.
+func (c *Config) AppChangelogPath(a *App) string {
+	return filepath.Join(c.AppRuntimeDir(a), "changelog.html")
 }
 
 // InstanceDir is the private data directory for one (user, app) pair.

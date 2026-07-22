@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"muxxerr/internal/config"
 	"muxxerr/internal/store"
 	"muxxerr/internal/supervisor"
+	"muxxerr/internal/version"
 )
 
 //go:embed templates/*.html
@@ -83,6 +85,13 @@ type Server struct {
 	// icons maps an app name to the icon filename found in its build.
 	// Populated once at startup by resolveIcons.
 	icons map[string]string
+	// builds maps an app name to the version/commit muxbuild recorded for it.
+	// Populated once at startup; an app muxbuild never built, or built before
+	// this feature existed, is simply absent and gets no badge.
+	builds map[string]version.AppBuild
+	// changelogs maps an app name to its CHANGELOG.md rendered to HTML by
+	// muxbuild, shown in a modal from the dashboard. Absent → no button.
+	changelogs map[string]template.HTML
 	// assetVer fingerprints the embedded static files; see staticVersion.
 	assetVer string
 	// trusted is site.trusted_proxies, parsed once. See clientip.go.
@@ -130,8 +139,50 @@ func New(cfg *config.Config, st *store.Store, pepper auth.Pepper, sup *superviso
 		}
 	}
 	s.resolveIcons()
+	s.loadBuilds()
 	return s, nil
 }
+
+// loadBuilds reads the per-app build metadata muxbuild wrote: the version/commit
+// from build.json, and the rendered CHANGELOG from changelog.html. Missing or
+// malformed files just mean "no badge" / "no release notes" — the loop never
+// fails and never logs, because "not built yet" is normal.
+func (s *Server) loadBuilds() {
+	s.builds = make(map[string]version.AppBuild, len(s.cfg.Apps))
+	s.changelogs = make(map[string]template.HTML, len(s.cfg.Apps))
+	for i := range s.cfg.Apps {
+		a := &s.cfg.Apps[i]
+		if b := version.ReadAppBuild(s.cfg.AppBuildPath(a)); !b.Empty() {
+			s.builds[a.Name] = b
+		}
+		if h := readChangelog(s.cfg.AppChangelogPath(a)); h != "" {
+			s.changelogs[a.Name] = h
+		}
+	}
+}
+
+// readChangelog loads a rendered changelog fragment. It is produced by muxbuild's
+// escaping converter, but this is the boundary where semi-trusted app content is
+// injected into the gateway's own page, so it refuses anything containing a
+// <script — defence in depth against a hand-edited file or a future converter
+// bug. Missing or suspicious files return "" and no button is shown.
+func readChangelog(path string) template.HTML {
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	if strings.Contains(strings.ToLower(string(blob)), "<script") {
+		slog.Warn("ignoring changelog with a <script tag", "path", path)
+		return ""
+	}
+	return template.HTML(blob)
+}
+
+// appBuild returns the recorded build metadata for an app, or the zero value.
+func (s *Server) appBuild(name string) version.AppBuild { return s.builds[name] }
+
+// appChangelog returns the app's rendered release notes, or "" if it has none.
+func (s *Server) appChangelog(name string) template.HTML { return s.changelogs[name] }
 
 // SetExporter wires the database-export capability after construction. The
 // gateway needs the web server (as its Authenticator) and the web server needs

@@ -33,6 +33,7 @@ import (
 	"muxxerr/internal/gateway"
 	"muxxerr/internal/store"
 	"muxxerr/internal/supervisor"
+	"muxxerr/internal/version"
 	"muxxerr/internal/web"
 )
 
@@ -56,6 +57,11 @@ func run() error {
 		level = slog.LevelDebug
 	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+
+	// The splash goes to stderr, not stdout: stdout is structured JSON that a
+	// log shipper parses, and an ASCII banner in the middle of that is garbage.
+	// stderr is where a human watching the terminal looks anyway.
+	fmt.Fprint(os.Stderr, version.Banner())
 
 	cfg, err := config.LoadDefault(*configPath)
 	if err != nil {
@@ -142,7 +148,9 @@ func run() error {
 			slog.Info("no accounts yet — the first sign-up becomes the administrator",
 				"url", "http://localhost"+portOf(cfg.Site.Addr)+"/signup")
 		}
-		slog.Info("muxxerr listening", "addr", cfg.Site.Addr, "apps", len(cfg.Apps))
+		commit, _ := version.GatewayCommit()
+		slog.Info("muxxerr listening", "addr", cfg.Site.Addr, "apps", len(cfg.Apps),
+			"version", version.GatewayVersion(), "commit", commit)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}

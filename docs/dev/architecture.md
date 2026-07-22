@@ -261,9 +261,11 @@ muxxerr/
 │   ├── auth/              Argon2id + pepper, passphrases, session tokens
 │   ├── gateway/           router, proxy, rewrite.go, shim.go, guard.go, export.go
 │   ├── supervisor/        child process lifecycle, health, idle stop
-│   └── web/               HTTP handlers: login/signup/reset, admin, the SQL
-│                          console + SQLite viewer, logs, templates + static
-│                          assets. Provides the Authenticator the gateway uses.
+│   ├── web/               HTTP handlers: login/signup/reset, admin, the SQL
+│   │                      console + SQLite viewer, logs, templates + static
+│   │                      assets. Provides the Authenticator the gateway uses.
+│   └── version/           gateway version (VERSION) + splash, and the per-app
+│                          build.json badge metadata. See docs/dev/versioning.md
 ├── runtime/               build output (gitignored)
 │   └── apps/<name>/{dist,<name>}
 ├── data/                  gitignored

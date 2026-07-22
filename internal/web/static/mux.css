@@ -880,6 +880,14 @@ button.link-quiet {
 	min-width: 0;
 }
 
+.app-card__details {
+    flex-direction: column;
+    min-width: 0;
+    display: flex;
+    align-items: flex-end;
+	gap: var(--s-1);
+}
+
 /* Added date and database size. A definition list because that is what this
    is — two labelled facts — and it gives screen readers the pairing for free. */
 .app-card__meta {
@@ -953,6 +961,120 @@ button.link-quiet {
    to the dot says it. The dot is a glance affordance, not the message. */
 .status--live { color: var(--ok); }
 .status--live .status__dot { background: var(--ok); }
+
+/* The build badge: the app's version/commit, from build.json. Deliberately
+   quiet — monospace so a hash reads cleanly, muted, a pill so it reads as
+   metadata rather than an action. Only rendered when there is a value, so a
+   card with no build info looks exactly as it did before. Colours come from the
+   theme tokens, so it follows light/dark with everything else. */
+.build-badge {
+	display: inline-flex;
+	align-items: center;
+	flex: none;
+	font-family: var(--font-mono);
+	font-size: var(--fs-xs);
+	font-weight: 500;
+	color: var(--text-muted);
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-full);
+	padding: 0.1em 0.6em;
+	white-space: nowrap;
+	cursor: default;
+}
+
+/* On the "available to add" list the badge sits inline next to the title, so it
+   should not inflate that line's height. */
+.add-item__title .build-badge {
+	font-weight: 500;
+	vertical-align: 0.05em;
+}
+
+.add-item__notes {
+	display: inline-block;
+	margin-top: var(--s-1);
+	font-size: var(--fs-sm);
+}
+
+/* ------------------------------------------------------------------ *
+ * Release-notes modal (an app's CHANGELOG.md, rendered at build time)
+ * ------------------------------------------------------------------ */
+
+dialog.changelog-dialog {
+	width: min(42rem, calc(100vw - 2 * var(--s-4)));
+	max-height: min(80vh, 44rem);
+	padding: 0;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--shadow-2);
+	overflow: hidden;
+}
+/* Scoped to [open] so the base rule never overrides the UA's
+   dialog:not([open]) { display: none } and flash the modal on load. */
+dialog.changelog-dialog[open] {
+	display: flex;
+	flex-direction: column;
+	margin: auto auto;
+}
+.changelog-dialog::backdrop {
+	background: rgb(8 16 22 / 0.5);
+}
+.changelog-dialog__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--s-3);
+	flex: none;
+	padding: var(--s-3) var(--s-4);
+	border-bottom: 1px solid var(--border);
+}
+.changelog-dialog__title {
+	margin: 0;
+	font-size: var(--fs-lg);
+}
+.changelog {
+	padding: var(--s-2) var(--s-4) var(--s-4);
+	overflow-y: auto;
+}
+
+/* The rendered markdown. Kept close to the app's own reading rhythm — the
+   converter only ever emits this fixed set of tags, so this list is complete. */
+.changelog > :first-child { margin-top: 0; }
+.changelog h1, .changelog h2, .changelog h3,
+.changelog h4, .changelog h5, .changelog h6 {
+	line-height: 1.25;
+	margin: var(--s-4) 0 var(--s-2);
+}
+.changelog h1 { font-size: var(--fs-lg); }
+.changelog h2 { font-size: var(--fs-base); }
+.changelog h3, .changelog h4, .changelog h5, .changelog h6 {
+	font-size: var(--fs-sm);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+}
+.changelog p { margin: var(--s-2) 0; }
+.changelog ul, .changelog ol { margin: var(--s-2) 0; padding-left: var(--s-5); }
+.changelog li { margin: var(--s-1) 0; }
+.changelog a { color: var(--accent); }
+.changelog code {
+	font-family: var(--font-mono);
+	font-size: 0.9em;
+	background: var(--surface-2);
+	border-radius: var(--radius-sm);
+	padding: 0.1em 0.35em;
+}
+.changelog pre {
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: var(--s-3);
+	overflow-x: auto;
+}
+.changelog pre code { background: none; padding: 0; }
+.changelog hr { border: none; border-top: 1px solid var(--border); margin: var(--s-4) 0; }
 
 /* ------------------------------------------------------------------ *
  * Chooser: available apps

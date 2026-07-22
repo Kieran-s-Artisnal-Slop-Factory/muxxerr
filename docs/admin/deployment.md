@@ -143,6 +143,12 @@ building (`git submodule update --init --recursive`). If `apps/readerr` or
 back to cloning each app's URL from `.gitmodules` at its **branch tip**, which
 builds and runs but is not the commit this repo pins.
 
+The image also stamps a build identity into the gateway's startup splash
+(`MUX_COMMIT` build-arg) and a version/commit badge onto each app on the
+dashboard. Because `.dockerignore` drops `.git`, that wiring is file- and
+build-arg-based rather than git-based — see
+[versioning.md](../dev/versioning.md) for what to set and how it flows through.
+
 ## Changing the port
 
 `MUX_PORT` in `.env` is the host side of the port mapping. The container always

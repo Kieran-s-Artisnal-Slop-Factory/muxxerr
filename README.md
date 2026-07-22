@@ -149,6 +149,8 @@ convenience (04 §4.4) and the backend hardening set (05) — see
 - [docs/dev/adding-an-app.md](docs/dev/adding-an-app.md) — adding to `apps.json`
 - [docs/dev/app-sources.md](docs/dev/app-sources.md) — submodules, local paths
   and `git+` URLs, and how to update them
+- [docs/dev/versioning.md](docs/dev/versioning.md) — the startup splash and the
+  per-app version/commit badges: where to set them, and how they reach the UI
 - [docs/admin/deployment.md](docs/admin/deployment.md) — Docker, the multi-arch
   image build (and its QEMU approach), and putting HTTPS in front of it —
   Caddy, nginx, Traefik, Cloudflare Tunnel and Pangolin

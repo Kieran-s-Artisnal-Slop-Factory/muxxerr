@@ -229,6 +229,14 @@ go run ./cmd/mux -config apps.json
 the result to `runtime/apps/<name>/dist`. Rebuild after changing an app's
 source **or** its `base_placeholder`; the sentinel is baked into the build.
 
+`muxbuild` also records the app's commit (from its git checkout) and version
+(from an optional `VERSION` file in the app's source root) to
+`runtime/apps/<name>/build.json`, which the dashboard shows as a small badge on
+the app's card; and if the source root has a `CHANGELOG.md`, it renders that to
+HTML for a **Release notes** modal on the card. Nothing to configure — no
+`VERSION`/`CHANGELOG.md` and no git just means no badge and no button. See
+[versioning.md](versioning.md).
+
 Then add the app to your account from the chooser at `/`. Adding it creates
 `data/instances/<you>/recipes/` and the instance row; nothing exists until you
 do.

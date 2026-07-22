@@ -116,6 +116,14 @@ RUN set -eu; \
 
 ARG TARGETOS TARGETARCH
 
+# MUX_COMMIT stamps the gateway's build commit into the startup splash and the
+# "muxxerr listening" log line. .dockerignore drops every .git, so the Go build
+# cannot read the VCS revision itself here — CI passes it in as a build-arg
+# (github.sha).
+# Empty is fine: the splash then shows just the version. The gateway's version
+# number comes from the embedded internal/version/VERSION file and needs no arg.
+ARG MUX_COMMIT=""
+
 # Two Go builds with deliberately different targets, which is the whole trick.
 # muxbuild is a build tool: it must execute in this stage, so it is compiled
 # for the BUILD platform with no override. mux ships in the final image, so it
@@ -123,7 +131,9 @@ ARG TARGETOS TARGETARCH
 RUN set -eu; \
     go build -trimpath -o /usr/local/bin/muxbuild ./cmd/muxbuild; \
     CGO_ENABLED=0 GOOS="${TARGETOS:-linux}" GOARCH="${TARGETARCH:-amd64}" \
-        go build -trimpath -ldflags="-s -w" -o /out/mux ./cmd/mux
+        go build -trimpath \
+        -ldflags="-s -w -X muxxerr/internal/version.gatewayCommit=${MUX_COMMIT}" \
+        -o /out/mux ./cmd/mux
 
 # The build proper, and then the assertion the comment at the top promised.
 # GOOS/GOARCH are set on muxbuild's own environment so that the `go build` it
