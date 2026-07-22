@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"muxerr/internal/auth"
-	"muxerr/internal/config"
-	"muxerr/internal/store"
+	"muxxerr/internal/auth"
+	"muxxerr/internal/config"
+	"muxxerr/internal/store"
 )
 
 type installedApp struct {

@@ -26,7 +26,7 @@ import (
 	"net/url"
 	"strings"
 
-	"muxerr/internal/config"
+	"muxxerr/internal/config"
 )
 
 // ShimHandler routes a root-absolute API request to the instance implied by

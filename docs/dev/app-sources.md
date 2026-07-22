@@ -21,14 +21,14 @@ The two apps ship as submodules under `apps/`:
 | `apps/workoutt` | `Kieran-s-Artisnal-Slop-Factory/workoutt` | `master` |
 
 A submodule records an **exact commit** in this repository's history. Two people
-who check out the same commit of muxerr build byte-identical apps, and
+who check out the same commit of muxxerr build byte-identical apps, and
 so does CI, and so does a rebuild six months from now. That is the whole
 argument for it.
 
 ### Cloning
 
 ```bash
-git clone --recurse-submodules https://github.com/you/muxerr
+git clone --recurse-submodules https://github.com/you/muxxerr
 ```
 
 Already cloned without it? The apps directories will be empty and `muxbuild`

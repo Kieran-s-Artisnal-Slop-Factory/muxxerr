@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"muxerr/internal/config"
+	"muxxerr/internal/config"
 )
 
 func contextWithTimeout(d time.Duration) (context.Context, context.CancelFunc) {

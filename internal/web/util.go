@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"muxerr/internal/config"
+	"muxxerr/internal/config"
 )
 
 // isReservedName keeps usernames out of the URL segments the gateway owns.

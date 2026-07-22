@@ -1,8 +1,8 @@
 # Upstream patches
 
-**None of these are applied. Muxerr works with workoutt and readerr
+**None of these are applied. Muxxerr works with workoutt and readerr
 exactly as they are shipped today.** This directory is a set of small, optional
-changes to the *apps* that make muxerr's job cleaner, cheaper and less
+changes to the *apps* that make muxxerr's job cleaner, cheaper and less
 surprising. They are written as prose + diff hunks rather than `.patch` files
 on purpose: they are one-line-ish edits in files that change often upstream, and
 a rejected hunk is a worse experience than three seconds of manual editing.
@@ -24,7 +24,7 @@ apps. Two of those assumptions bite when you mount many copies of them under
 The gateway already handles (1) with a **Referer-based compatibility shim**
 (`internal/gateway/shim.go`): a request for a root-absolute API path whose
 `Referer` points into `/<user>/<app>/` is re-attributed to that instance. It
-works, it is tested, and it is the reason you can point muxerr at an
+works, it is tested, and it is the reason you can point muxxerr at an
 unmodified checkout and have it just run.
 
 It is also a heuristic. `Referer` is a request header the browser controls:
@@ -55,7 +55,7 @@ which moves it *into* the service worker's scope. Applying 01 without 02 makes
 things worse than either — a cached, stale `/sync/pull` is a data bug, not a
 performance one. **Apply 01 and 02 together or neither.**
 
-Patch 05 is independent of the rest and independent of muxerr; it is
+Patch 05 is independent of the rest and independent of muxxerr; it is
 the pile of "you are now running this as a supervised child process with other
 tenants next door" hardening that was never worth doing for a single-user LAN
 app.
@@ -72,11 +72,11 @@ git checkout -b mux-compat
 git diff               # sanity check: 01+02+03 should be under 30 changed lines
 ```
 
-Then rebuild through muxerr, which is the only build that matters
+Then rebuild through muxxerr, which is the only build that matters
 here — it is what injects the sentinel base:
 
 ```bash
-cd ../muxerr
+cd ../muxxerr
 go run ./cmd/muxbuild -config apps.json -app readerr
 ```
 
@@ -85,7 +85,7 @@ go run ./cmd/muxbuild -config apps.json -app readerr
 gateway rewrites that sentinel to `/alice/readerr/` on the way out. That is why
 patch 01's fallback is `import.meta.env.BASE_URL` and not a hardcoded string:
 the same source builds correctly for GitHub Pages (`--base=/readerr`), for the
-Go backend at the origin root (no `--base`), and for muxerr.
+Go backend at the origin root (no `--base`), and for muxxerr.
 
 ## How to verify
 

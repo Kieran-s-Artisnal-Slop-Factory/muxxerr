@@ -1,4 +1,4 @@
-module muxerr
+module muxxerr
 
 go 1.25.0
 

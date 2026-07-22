@@ -16,8 +16,8 @@ import (
 	"strconv"
 	"time"
 
-	"muxerr/internal/auth"
-	"muxerr/internal/store"
+	"muxxerr/internal/auth"
+	"muxxerr/internal/store"
 )
 
 type adminUser struct {

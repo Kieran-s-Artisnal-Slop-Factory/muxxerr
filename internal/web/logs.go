@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"muxerr/internal/config"
-	"muxerr/internal/supervisor"
+	"muxxerr/internal/config"
+	"muxxerr/internal/supervisor"
 )
 
 // logTailDefault is what the page shows. The supervisor keeps rather more than

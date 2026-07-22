@@ -3,7 +3,7 @@
 **Applies to:** `workoutt/backend`, `readerr/backend`, and the generator's
 `emitGoMain.ts` / `emitGoDb.ts`
 **Status:** not applied. **Entirely optional**, and unlike patches 01-03 nothing
-here is required for muxerr to work.
+here is required for muxxerr to work.
 
 These backends were written for a stated posture: *"Single-user, self-hosted, no
 auth"* (`readerr/backend/main.go` line 3), permissive CORS, LAN only. Every
@@ -24,7 +24,7 @@ The gateway already compensates for some of this. Where it does, it is noted.
 addr := ":" + envOr("PORT", "8080")
 ```
 
-`":" + port` binds **all interfaces**. Under muxerr, every running
+`":" + port` binds **all interfaces**. Under muxxerr, every running
 instance is therefore a no-auth, permissive-CORS sync server listening on the
 LAN on an ephemeral port. The gateway's authentication is a front door with the
 windows open: anyone who can reach the host and guess the port has full
@@ -134,7 +134,7 @@ the worst possible failure for a backup, because it looks fine until you restore
 it. `wal_checkpoint(TRUNCATE)` itself can also return without checkpointing
 (it returns a busy result rather than an error) if a reader is active.
 
-Under muxerr this gets more likely, not less: the admin export path
+Under muxxerr this gets more likely, not less: the admin export path
 proxies `GET /backup` while the user's browser may be mid-sync, and workoutt's
 scheduler writes on its own timer regardless of what anyone is doing.
 
@@ -179,7 +179,7 @@ Costs: a full copy of the database on disk for the duration of the download, in
 the OS temp directory. For these apps that is single-digit megabytes. If that is
 not acceptable, put the temp file next to the database instead
 (`filepath.Dir(s.dbPath)`) so it lands on the same volume and inside the
-instance's own directory — which under muxerr is the tidier choice
+instance's own directory — which under muxxerr is the tidier choice
 anyway, since each instance directory is already isolated per (user, app).
 
 `VACUUM INTO` also compacts, so the backup is smaller than the live file. That
@@ -260,7 +260,7 @@ and a stuck goroutine is charged to a shared machine.
 readerr's `main.go` does not currently import `time`; workoutt's does.
 
 A note on what this does **not** add: graceful shutdown on `SIGTERM`. It is the
-obvious next line, and it is deliberately absent — muxerr's supervisor
+obvious next line, and it is deliberately absent — muxxerr's supervisor
 already sends `SIGTERM` and waits before escalating, and SQLite in WAL mode
 recovers cleanly from an abrupt exit, so the added complexity buys very little.
 If you add it anyway, `srvHTTP.Shutdown(ctx)` on a signal is the whole change.
@@ -276,7 +276,7 @@ If you take two: **5.1 and 5.4**. A backup that silently corrupts is the only
 item that loses data.
 
 The rest are hygiene. They matter more the further you get from "one person, one
-laptop, one app", which is exactly the direction muxerr points.
+laptop, one app", which is exactly the direction muxxerr points.
 
 ## Verify
 

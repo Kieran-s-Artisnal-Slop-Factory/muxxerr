@@ -1,5 +1,5 @@
 // Package config loads apps.json — the single declaration of which apps this
-// muxerr can serve, where their sources live, and how each one must be
+// muxxerr can serve, where their sources live, and how each one must be
 // run and proxied.
 //
 // The file is deliberately plain JSON with no dependencies: the build

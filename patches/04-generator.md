@@ -34,7 +34,7 @@ there is no backtick or `${` in the replacement:
 +  // No configured URL means same-origin, and the base the app was built with
 +  // is the correct same-origin prefix: '' at the root (the Go backend serving
 +  // its own frontend), '/${app}' under a sub-path like GitHub Pages, and
-+  // '/<user>/${app}' behind a muxerr that mounts many instances on one
++  // '/<user>/${app}' behind a muxxerr that mounts many instances on one
 +  // host. BASE_URL always ends in '/'; every call site supplies its own.
 +  return localStorage.getItem(SYNC_URL_KEY) ?? import.meta.env.BASE_URL.replace(/\\/+$/, '');
  }
@@ -84,7 +84,7 @@ resolves its base from `BASE_URL`. `startsWith('/sync/')` does not match
 +  // Never cache the sync/API endpoints — they must always hit the server. The
 +  // client resolves its API base from BASE_URL, so these live under whatever
 +  // prefix the app is mounted at ('/' standalone, '/<user>/<app>/' behind a
-+  // muxerr) — match anywhere in the path, not just at the root. A
++  // muxxerr) — match anywhere in the path, not just at the root. A
 +  // stale-while-revalidate /sync/pull returns rows the client has already
 +  // applied and reports success, which is silent data loss.
    if (
@@ -169,7 +169,7 @@ New file, `src/lib/generator/project/emitMuxEntry.ts`:
 
 ```ts
 /**
- * mux.json — this app's apps.json entry for the muxerr, ready to
+ * mux.json — this app's apps.json entry for the muxxerr, ready to
  * paste into that file's "apps" array.
  *
  * Emitted as its own file rather than as a section of the README because it is
@@ -238,7 +238,7 @@ because a file nobody knows exists is not a feature.
 
 ### Why a separate file rather than editing `apps.json` directly
 
-The generator produces a zip. It has no access to muxerr's checkout,
+The generator produces a zip. It has no access to muxxerr's checkout,
 does not know where it lives, and must not assume there is one. Emitting a
 fragment the user pastes (or `jq`s) in keeps the generator a pure function of
 its input, which is the property that makes the whole emitter design testable.

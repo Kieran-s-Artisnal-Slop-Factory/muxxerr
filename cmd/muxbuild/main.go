@@ -46,7 +46,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"muxerr/internal/config"
+	"muxxerr/internal/config"
 )
 
 // scanLimit caps how much of a dist file we are willing to read when looking

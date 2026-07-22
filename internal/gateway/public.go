@@ -28,7 +28,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"muxerr/internal/config"
+	"muxxerr/internal/config"
 )
 
 // publicAssets are served without a session. Every entry has to be justified

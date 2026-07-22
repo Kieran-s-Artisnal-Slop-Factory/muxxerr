@@ -3,8 +3,8 @@ package web
 import (
 	"testing"
 
-	"muxerr/internal/config"
-	"muxerr/internal/store"
+	"muxxerr/internal/config"
+	"muxxerr/internal/store"
 )
 
 func TestSafeNext(t *testing.T) {

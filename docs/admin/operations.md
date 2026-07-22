@@ -1,6 +1,6 @@
 # Operations
 
-Running muxerr: first boot, day-to-day administration, backups, and the
+Running muxxerr: first boot, day-to-day administration, backups, and the
 security caveats you should know before pointing anyone at it.
 
 The short version, if you read nothing else: **back up `data/` and

@@ -32,9 +32,9 @@ import (
 	"strings"
 	"time"
 
-	"muxerr/internal/config"
-	"muxerr/internal/store"
-	"muxerr/internal/supervisor"
+	"muxxerr/internal/config"
+	"muxxerr/internal/store"
+	"muxxerr/internal/supervisor"
 )
 
 // maxAPIBody caps a proxied request body. The apps decode /sync/push with an

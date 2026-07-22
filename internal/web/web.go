@@ -1,4 +1,4 @@
-// Package web is muxerr's own interface: signing in, choosing an
+// Package web is muxxerr's own interface: signing in, choosing an
 // app, managing an account, and administering the server.
 //
 // Everything here is server-rendered Go templates and plain form posts. That
@@ -26,10 +26,10 @@ import (
 	"strings"
 	"time"
 
-	"muxerr/internal/auth"
-	"muxerr/internal/config"
-	"muxerr/internal/store"
-	"muxerr/internal/supervisor"
+	"muxxerr/internal/auth"
+	"muxxerr/internal/config"
+	"muxxerr/internal/store"
+	"muxxerr/internal/supervisor"
 )
 
 //go:embed templates/*.html
@@ -96,7 +96,7 @@ func New(cfg *config.Config, st *store.Store, pepper auth.Pepper, sup *superviso
 	s := &Server{
 		cfg: cfg, store: st, pepper: pepper, sup: sup, exporter: exporter,
 		tmpl:          map[string]*template.Template{},
-		siteName:      "Muxerr",
+		siteName:      "Muxxerr",
 		resetTokens:   newResetTokenStore(),
 		consoleTokens: newResetTokenStore(),
 		assetVer:      computeAssetVersion(),

@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"muxerr/internal/config"
-	"muxerr/internal/gateway"
+	"muxxerr/internal/config"
+	"muxxerr/internal/gateway"
 )
 
 // appIcon returns the filename of an app's own icon inside its build, or "".

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"muxerr/internal/supervisor"
+	"muxxerr/internal/supervisor"
 )
 
 func at(s string) time.Time {

@@ -50,7 +50,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"muxerr/internal/config"
+	"muxxerr/internal/config"
 )
 
 const (
